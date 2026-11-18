@@ -87,6 +87,12 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Map label stacking regression failed' }
     & node tests/test_recovery_bulk_ui.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Recovery bulk selection UI regression failed' }
+    & node tests/test_ui_stage1.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'UI stage-one contract regression failed' }
+    & node --check assets/app.js
+    if ($LASTEXITCODE -ne 0) { throw 'Invalid editor JavaScript syntax' }
+    & node --check assets/production-studio.js
+    if ($LASTEXITCODE -ne 0) { throw 'Invalid Project Manager JavaScript syntax' }
     if (-not $SkipTests) {
         & go test ./...
         if ($LASTEXITCODE -ne 0) { throw 'Legacy CartoRig tests failed' }
