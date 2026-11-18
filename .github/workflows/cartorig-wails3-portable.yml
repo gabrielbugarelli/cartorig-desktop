@@ -32,6 +32,7 @@ jobs:
           node tests/test_texture_cache.mjs
           node tests/test_texture_render_path.mjs
           node tests/test_state_boundaries.mjs
+          node tests/test_label_stack.mjs
           node tests/test_preview_cache.mjs
           node tests/test_preview_lifecycle.mjs
           node tests/test_preview_composition_integration.mjs
