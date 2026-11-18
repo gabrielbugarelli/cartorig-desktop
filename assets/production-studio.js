@@ -61,12 +61,45 @@ export function setupProductionStudio({getDoc,getSelection,execute,getCountries,
    try{await json('/api/v2/autosave',projectDoc());}catch(err){console.warn('Autosave could not complete:',err);status('Autosave unavailable; use Save to preserve the project');}
   },3000);
  }
- async function recoveryCheck(){try{const items=await (await api('/api/v2/recovery')).json();if(!items.length)return;const x=items[0];if(confirm(`Recover a newer CartoRig autosave?\n${x.name} · revision ${x.revision}\n\nOK: Recover Copy · Cancel: Keep current project`)){
- const doc=await (await api('/api/v2/recovery/'+x.id)).json();doc.project_id=crypto.randomUUID();doc.name+=' (Recovered)';replaceDoc(doc);scheduleAutosave();notify('Recovery opened as a copy');}
- }catch(e){console.warn('Recovery check failed:',e)}}
+ // Autosave recovery is available in the project manager, never a startup prompt.
+ async function listRecoveries(){
+  const response=await api('/api/v2/recovery'),items=await response.json();
+  return Array.isArray(items)?items:[];
+ }
+ async function recoveryCheck(){
+  try{
+   const items=await listRecoveries(),trigger=$('openProjects');
+   trigger.textContent=items.length?'Projects & recovery · '+items.length:'Projects & recovery';
+   trigger.title=items.length?items.length+' autosave(s) available':'Saved projects and recovery';
+  }catch(e){console.warn('Recovery status unavailable',e);}
+ }
+ async function renderRecoveries(){
+  const section=$('prodRecoverySection'),host=$('prodRecoveries');
+  host.replaceChildren();
+  const items=await listRecoveries();
+  section.hidden=!items.length;
+  for(const item of items){
+   const button=document.createElement('button');
+   button.type='button';button.className='prod-recent';
+   button.textContent=item.name+' · Revision '+item.revision+' · Restore copy';
+   button.title='Restore autosave as a separate project; back up the current map first';
+   button.onclick=async()=>{
+    button.disabled=true;
+    try{
+     await json('/api/v2/autosave',projectDoc());
+     const recovered=await(await api('/api/v2/recovery/'+encodeURIComponent(item.id))).json();
+     recovered.project_id=crypto.randomUUID();recovered.name+=' (Recovered)';
+     replaceDoc(recovered);scheduleAutosave();
+     closeModal('productionProjects');
+     notify('Recovery opened as a copy');
+    }catch(e){button.disabled=false;notify('Recovery failed: '+e.message,true);}
+   };
+   host.append(button);
+  }
+ }
  async function recentProjects(){let list=await (await api('/api/v2/project/recent')).json();let content=$('prodRecent');content.replaceChildren();if(!list.length){content.textContent='No saved projects yet.';return};for(let x of list){let b=document.createElement('button');b.className='prod-recent';b.textContent=x.name+'  ·  Revision '+x.revision+'  ·  '+x.modified;b.onclick=async()=>{try{if(getDoc()&&confirm('Open saved project? Unsaved changes in the current scene will be discarded.')===false)return;let data=await (await api('/api/v2/project/load?id='+encodeURIComponent(x.id))).json();replaceDoc(data);savedProjectId=x.id;closeModal('productionProjects');notify('Opened '+x.name)}catch(e){notify('Cannot open recent project: '+e.message,true)}};content.append(b)}}
  async function projects(){
-    await recentProjects();const builtins=$('prodTemplates');builtins.replaceChildren();
+    await recentProjects();await renderRecoveries();const builtins=$('prodTemplates');builtins.replaceChildren();
     for(const t of PROJECT_TEMPLATES){const b=document.createElement('button');b.className='prod-recent';b.textContent=t.name+' — '+t.description;b.onclick=()=>{if(!confirm('Create a new project from this template? The current project will be replaced.'))return;replaceDoc(createTemplate(t.id));closeModal('productionProjects');notify('Template created: '+t.name)};builtins.append(b)}
     const customs=$('prodCustomTemplates');customs.replaceChildren();
     try{const list=await (await api('/api/v2/project/templates')).json();for(const t of list){const b=document.createElement('button');b.className='prod-recent';b.textContent=t.name;b.onclick=async()=>{if(!confirm('Create a project from this custom template?'))return;const d=await (await api('/api/v2/project/template/'+t.id)).json();d.project_id=crypto.randomUUID();d.revision=0;d.name+=' (Copy)';replaceDoc(d);closeModal('productionProjects')};customs.append(b)}}catch(e){console.warn('Custom templates unavailable',e)}

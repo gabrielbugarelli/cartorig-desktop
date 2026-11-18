@@ -289,3 +289,10 @@ button:disabled{cursor:not-allowed}
 .ux-pane-toggle[aria-pressed="true"]{color:#b9d6e8}
 .ux-pane-toggle[aria-pressed="false"]{color:#7892a6}
 @media(max-width:760px){.stage-heading #toggleScene{position:static;flex:0 0 auto;background:transparent!important}.stage-heading{display:flex;gap:7px}}
+
+/* Official desktop identity, supplied by the user. */
+.brand .mark{padding:0;overflow:hidden;background:transparent;border:0}
+.brand .mark img{display:block;width:100%;height:100%;object-fit:contain}
+#prodRecoverySection[hidden]{display:none!important}
+#prodRecoverySection{margin-top:12px}
+#prodRecoveries .prod-recent{border-color:#476886}

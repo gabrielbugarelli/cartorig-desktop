@@ -66,13 +66,7 @@ func desktopMiddleware(api http.Handler, nativeQuit func(), nativeSave desktopSa
                 return
             }
             if path=="/api/quit" {
-                if r.Method!=http.MethodPost {
-                    http.Error(w,"Method not allowed",http.StatusMethodNotAllowed)
-                    return
-                }
-                w.Header().Set("Content-Type","application/json")
-                _,_=w.Write([]byte("{\"ok\":true}"))
-                if nativeQuit!=nil { go nativeQuit() }
+                http.Error(w,"Exit through the Windows notification area",http.StatusGone)
                 return
             }
             if path=="/api/desktop/save" {

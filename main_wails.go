@@ -3,93 +3,104 @@
 package main
 
 import (
+    _ "embed"
     "errors"
     "io/fs"
     "log"
     "runtime/debug"
     "strings"
-    "time"
+    "sync/atomic"
 
     "github.com/wailsapp/wails/v3/pkg/application"
+    "github.com/wailsapp/wails/v3/pkg/events"
 )
 
-// Windows desktop startup is logged even when compiled as windowsgui.
-// Wails uses the in-process asset server; no localhost TCP port is opened.
+//go:embed assets/cartorig-brand.png
+var cartorigIcon []byte
+
 func main() {
-    if hasDiagnosticArg() { desktopSelfCheck(); return }
+    if hasDiagnosticArg(){desktopSelfCheck();return}
     initDesktopLogging()
     log.Printf("CartoRig Wails 3 startup")
-    defer func() {
-        if value := recover(); value != nil {
-            desktopStartupFailure(errors.New("panic during startup: " + toString(value) +
-                "\n" + string(debug.Stack())))
+    defer func(){
+        if value:=recover();value!=nil {
+            desktopStartupFailure(errors.New("panic during startup: "+toString(value)+"\n"+string(debug.Stack())))
         }
     }()
 
     var app *application.App
-    api := newMux()
+    var window *application.WebviewWindow
+    var shuttingDown atomic.Bool
+    api:=newMux()
     log.Printf("CartoRig API registered")
-    app = application.New(application.Options{
-        Name: "CartoRig",
-        Description: "Offline cartographic scene composer",
-        ErrorHandler: func(err error) {
-            if err != nil {
-                log.Printf("Wails internal error: %v", err)
-                syncDesktopLog()
-            }
+    app=application.New(application.Options{
+        Name:"CartoRig",
+        Description:"Offline cartographic scene composer",
+        Icon:cartorigIcon,
+        SingleInstance:&application.SingleInstanceOptions{
+            UniqueID:"com.cartorig.desktop",
+            OnSecondInstanceLaunch:func(_ application.SecondInstanceData){
+                log.Printf("Second instance: restoring CartoRig window")
+                application.InvokeSync(func(){if window!=nil{window.Show().Focus()}})
+            },
         },
-        PanicHandler: func(details *application.PanicDetails) {
-            log.Printf("Wails panic: %+v", details)
-            syncDesktopLog()
-        },
-        Assets: application.AssetOptions{
-            Handler: application.AssetFileServerFS(mustAssetsFS()),
-            Middleware: desktopMiddleware(api, func() {
-                time.Sleep(150 * time.Millisecond)
-                app.Quit()
-            }, func(name string) (string, error) {
-                return app.Dialog.SaveFile().
-                    SetFilename(name).
-                    PromptForSingleSelection()
+        ErrorHandler:func(err error){if err!=nil{log.Printf("Wails internal error: %v",err);syncDesktopLog()}},
+        PanicHandler:func(details *application.PanicDetails){log.Printf("Wails panic: %+v",details);syncDesktopLog()},
+        Assets:application.AssetOptions{
+            Handler:application.AssetFileServerFS(mustAssetsFS()),
+            Middleware:desktopMiddleware(api,nil,func(name string)(string,error){
+                return app.Dialog.SaveFile().SetFilename(name).PromptForSingleSelection()
             }),
-            DisableLogging: true,
+            DisableLogging:true,
         },
     })
     log.Printf("Wails application initialized")
-    // Windows WebView2 is a separate runtime; absence may cause a silent
-    // immediate exit in a GUI-subsystem executable.
-    platform := app.Env.Info().PlatformInfo
-    if value, present := platform["WebView2"]; present {
-        version, ok := value.(string)
-        if ok && strings.TrimSpace(version) == "" {
-            desktopStartupFailure(errors.New(
-                "Microsoft Edge WebView2 Runtime is missing or broken. " +
-                "Install or repair it from https://developer.microsoft.com/microsoft-edge/webview2/"))
+    platform:=app.Env.Info().PlatformInfo
+    if value,present:=platform["WebView2"];present{
+        if version,ok:=value.(string);ok&&strings.TrimSpace(version)==""{
+            desktopStartupFailure(errors.New("Microsoft Edge WebView2 Runtime is missing or broken. Install or repair it from https://developer.microsoft.com/microsoft-edge/webview2/"))
             return
         }
-        log.Printf("WebView2 runtime: %v", value)
+        log.Printf("WebView2 runtime: %v",value)
     }
 
-    window := app.Window.NewWithOptions(application.WebviewWindowOptions{
-        Name: "cartorig-main",
-        Title: "CartoRig Desktop",
-        Width: 1600, Height: 940,
-        MinWidth: 800, MinHeight: 600,
-        BackgroundColour: application.NewRGB(15,22,31),
+    window=app.Window.NewWithOptions(application.WebviewWindowOptions{
+        Name:"cartorig-main",Title:"CartoRig Desktop",
+        Width:1600,Height:940,MinWidth:800,MinHeight:600,
+        BackgroundColour:application.NewRGB(15,22,31),
     })
-    log.Printf("Window registered")
+    window.RegisterHook(events.Common.WindowClosing,func(e *application.WindowEvent){
+        if shuttingDown.Load(){return}
+        e.Cancel()
+        window.Hide()
+        log.Printf("Window hidden to Windows notification area")
+    })
+
+    // No AttachWindow: it overrides left-click with show/hide instead of menu.
+    tray:=app.SystemTray.New()
+    tray.SetIcon(cartorigIcon)
+    tray.SetLabel("CartoRig")
+    menu:=app.NewMenu()
+    menu.Add("Abrir CartoRig").OnClick(func(_ *application.Context){window.Show().Focus()})
+    menu.AddSeparator()
+    menu.Add("Fechar CartoRig").OnClick(func(_ *application.Context){
+        shuttingDown.Store(true)
+        log.Printf("User exited CartoRig through Windows notification area")
+        syncDesktopLog()
+        app.Quit()
+    })
+    tray.SetMenu(menu)
+    tray.OnClick(func(){tray.ShowMenu()})
+    log.Printf("Tray registered; left click opens menu")
     window.Center()
     window.Show()
     log.Printf("Entering Wails event loop")
-    if err := app.Run(); err != nil {
-        desktopStartupFailure(err)
-        return
-    }
+    if err:=app.Run();err!=nil{desktopStartupFailure(err);return}
     log.Printf("Wails event loop finished normally")
 }
 
 func mustAssetsFS() fs.FS {
-    sub, err := fs.Sub(appFiles, "assets")
-    if err != nil { panic(err) }
+    sub,err:=fs.Sub(appFiles,"assets")
+    if err!=nil{panic(err)}
     return sub
 }
