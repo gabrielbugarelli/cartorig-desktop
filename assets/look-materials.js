@@ -12,7 +12,10 @@ export const RELIEF_PROFILES=Object.freeze(['none','soft','natural','rugged','en
 // [family, support, land material, ocean material, print finish, relief profile, support/land/ocean/finish/relief strengths]
 const RECIPE_ROWS=Object.freeze({
  dark:['Dark / Cinematic','dark_grain','mineral_grit','deep_sea','ink_grain','dark',.36,.28,.27,.12,.14],
- atlas:['Paper / Parchment','paper_clean','paper_fibrous','marine_noise','ink_grain','soft',.49,.34,.22,.23,.09],
+ // Atlas is a terrestrial paper map: keep the paper grain on land,
+ // and use the underlying flat ocean color. Marine patterns remain available
+ // through an explicit Ocean material override and dedicated nautical Looks.
+ atlas:['Paper / Parchment','paper_clean','paper_fibrous','none','ink_grain','soft',.49,.34,0,.23,.09],
  tactical:['Documentary / Tactical','archival_sheet','tactical_noise','marine_noise','print_plate','soft',.30,.45,.20,.31,.10],
  relief:['Terrain / Relief','none','mineral_grit','marine_noise','none','natural',0,.24,.15,0,.34],
  satellite:['Terrain / Relief','none','mineral_grit','marine_noise','none','natural',0,.11,.10,0,.09],
