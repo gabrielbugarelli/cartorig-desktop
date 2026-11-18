@@ -8,6 +8,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   portable:
+    # Never allocate a runner if this repository becomes private.
+    if: ${{ github.event.repository.private == false }}
     runs-on: windows-2022
     timeout-minutes: 60
     permissions:
