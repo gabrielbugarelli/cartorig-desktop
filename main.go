@@ -43,7 +43,7 @@ func makeSessionToken() string {
 	return hex.EncodeToString(b[:])
 }
 
-func main() {
+func runLegacyBrowser() {
 	noBrowser := false
 	for _, arg := range os.Args[1:] {
 		if arg == "--no-browser" {
