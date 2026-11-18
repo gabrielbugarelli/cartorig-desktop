@@ -23,7 +23,6 @@ func main() {
                 app.Quit()
             }, func(name string) (string, error) {
                 return app.Dialog.SaveFile().
-                    SetTitle("Exportar arquivo CartoRig").
                     SetFilename(name).
                     PromptForSingleSelection()
             }),
