@@ -296,3 +296,20 @@ button:disabled{cursor:not-allowed}
 #prodRecoverySection[hidden]{display:none!important}
 #prodRecoverySection{margin-top:12px}
 #prodRecoveries .prod-recent{border-color:#476886}
+/* Recovery manager: batch selection without changing the restore action. */
+#prodRecoverySection .prod-recovery-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 4px}
+#prodRecoverySection .prod-recovery-select-all{display:inline-flex;flex-direction:row;align-items:center;gap:7px;margin:0 8px 0 0;cursor:pointer;font-size:12px}
+#prodRecoverySection .prod-recovery-select-all input{margin:0;accent-color:#72b8ed;width:16px;height:16px}
+#prodRecoverySelected{font-size:12px;color:#b7ccdc;white-space:nowrap;margin-right:auto}
+#prodRecoverySection .prod-recovery-toolbar button{font-size:12px;padding:7px 9px}
+#prodRecoverySection #prodRecoveryDeleteAll{border-color:#9c6468;color:#ffcfca}
+#prodRecoverySection #prodRecoveryDelete:not(:disabled){border-color:#a67576}
+#prodRecoverySection .prod-recovery-hint{font-size:11px;line-height:1.4;color:#a9bdce;margin:5px 0 10px}
+#prodRecoveries .prod-recovery-row{display:flex;align-items:stretch;gap:8px;margin:6px 0}
+#prodRecoveries .prod-recovery-item-select{display:flex;flex:0 0 32px;align-items:center;justify-content:center;flex-direction:row;margin:0;cursor:pointer;border:1px solid #405369;border-radius:7px;background:#1a2e41}
+#prodRecoveries .prod-recovery-item-select:has(input:checked){border-color:#72b8ed;background:#254561}
+#prodRecoveries .prod-recovery-item-select:focus-within{outline:2px solid #6db7ff;outline-offset:2px}
+#prodRecoveries .prod-recovery-item-select input{margin:0;width:16px;height:16px;accent-color:#72b8ed;cursor:pointer}
+#prodRecoveries .prod-recent{width:auto;flex:1;min-width:0;margin:0;border-color:#476886}
+@media(max-width:600px){#prodRecoverySelected{width:100%;order:3}#prodRecoverySection .prod-recovery-toolbar{gap:7px}}
+
