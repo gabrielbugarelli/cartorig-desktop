@@ -27,6 +27,17 @@ type previewDiagnostics struct {
     BaseHits uint64 `json:"baseHits"`
     BaseDrawMs float64 `json:"baseDrawMs"`
     PreviewPixels uint64 `json:"previewPixels"`
+    TextureCacheHits uint64 `json:"textureCacheHits"`
+    TextureCacheMisses uint64 `json:"textureCacheMisses"`
+    TextureCachePixels uint64 `json:"textureCachePixels"`
+    TexturePrepareMs float64 `json:"texturePrepareMs"`
+    TextureWorldMs float64 `json:"textureWorldMs"`
+    TextureMaterialMs float64 `json:"textureMaterialMs"`
+    TextureReliefMs float64 `json:"textureReliefMs"`
+    TextureRasterCalls uint64 `json:"textureRasterCalls"`
+    TexturePreparedCalls uint64 `json:"texturePreparedCalls"`
+    TextureRasterCopies uint64 `json:"textureRasterCopies"`
+    TextureCulledCopies uint64 `json:"textureCulledCopies"`
 }
 var lastWebviewHeartbeat atomic.Int64
 var nativeWindowVisible atomic.Bool
@@ -39,11 +50,15 @@ func desktopReceiveHeartbeat(w http.ResponseWriter,r *http.Request){
     if err:=d.Decode(&info);err!=nil{http.Error(w,"Invalid diagnostics",http.StatusBadRequest);return}
     if len(info.Phase)>24{http.Error(w,"Invalid phase",http.StatusBadRequest);return}
     lastWebviewHeartbeat.Store(time.Now().UnixNano())
-    log.Printf("WEBVIEW_HEALTH phase=%q nativeVisible=%t docHidden=%t previewVisible=%t size=%.0fx%.0f renders=%d invalidations=%d resizes=%d skippedHidden=%d lastDrawMs=%.1f maxDrawMs=%.1f baseRenders=%d baseHits=%d baseDrawMs=%.1f previewPixels=%d framePending=%t",
+    log.Printf("WEBVIEW_HEALTH phase=%q nativeVisible=%t docHidden=%t previewVisible=%t size=%.0fx%.0f renders=%d invalidations=%d resizes=%d skippedHidden=%d lastDrawMs=%.1f maxDrawMs=%.1f baseRenders=%d baseHits=%d baseDrawMs=%.1f previewPixels=%d texCacheHits=%d texCacheMisses=%d texCachePixels=%d texPrepareMs=%.1f texWorldMs=%.1f texMaterialsMs=%.1f texReliefMs=%.1f texRasterCalls=%d texPreparedCalls=%d texRasterCopies=%d texCulledCopies=%d framePending=%t",
         info.Phase,nativeWindowVisible.Load(),info.DocumentHidden,info.PreviewVisible,
         info.WebviewWidth,info.WebviewHeight,info.Renders,info.Invalidations,
         info.ResizeEvents,info.SkippedHidden,info.LastRenderMs,info.MaxRenderMs,
-        info.BaseRenders,info.BaseHits,info.BaseDrawMs,info.PreviewPixels,info.FramePending)
+        info.BaseRenders,info.BaseHits,info.BaseDrawMs,info.PreviewPixels,
+        info.TextureCacheHits,info.TextureCacheMisses,info.TextureCachePixels,info.TexturePrepareMs,
+        info.TextureWorldMs,info.TextureMaterialMs,info.TextureReliefMs,
+        info.TextureRasterCalls,info.TexturePreparedCalls,info.TextureRasterCopies,info.TextureCulledCopies,
+        info.FramePending)
     w.WriteHeader(http.StatusNoContent)
 }
 func monitorWebviewHealth(done <-chan struct{}){

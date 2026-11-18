@@ -72,6 +72,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Preview cache regression failed' }
     & node tests/test_preview_composition_integration.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Preview integration regression failed' }
+    & node tests/test_texture_cache.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Texture preparation regression failed' }
+    & node tests/test_texture_render_path.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Texture render-path regression failed' }
     if (-not $SkipTests) {
         & go test ./...
         if ($LASTEXITCODE -ne 0) { throw 'Legacy CartoRig tests failed' }

@@ -2,7 +2,7 @@ import {MATERIAL_IDS} from './look-materials.js';
 import {setupNavigation} from './navigation-ui.js';
 /* CartoRig M0/M1 — three-pane editing UI. No animation engine. MIT. */
 import {SceneStore,newDocument,migrateLegacy,validateDocument,madeObject,uuid,treeIds,isVisible,isLocked,normalizeSelection,clamp,clone} from './scene-core.js';
-import {renderScene,renderMapLabelLayer,drawPreviewSelection,project,unproject,scaleFor,hitTest,hitTestCandidates,boundsOf,pointInside,polygonCacheStats} from './scene-renderer.js';
+import {renderScene,renderMapLabelLayer,drawPreviewSelection,project,unproject,scaleFor,hitTest,hitTestCandidates,boundsOf,pointInside,polygonCacheStats,previewTextureStats,textureRenderStats} from './scene-renderer.js';
 import {createPreviewCache,previewBackingScale} from './preview-cache.js';
 import {createPreviewScheduler} from './preview-scheduler.js';
 import {setupProductionStudio} from './production-studio.js';
@@ -24,7 +24,7 @@ let lastSavedFileName=null,sessionToken="",geo=null,worldAdminState="checking",w
 const GEO_RESULTS_PAGE=20, GEO_SEARCH_DELAY_MS=180;
 let geoSearchOffset=0,geoSearchTimer=null;
 window.CartoRig={get ready(){return appReady},get scene(){return clone(store.doc)},get selection(){return [...store.selection]}, get history(){return {undo:store.undoStack.length,redo:store.redoStack.length}},execute:cmd=>exec(cmd),get countryCount(){return countries.length},get geoCatalog(){return geo},get geoDatasets(){return geo?.dataStatus()||[]},get geoIntegrity(){return verifiedGeoHealth},get creativeDraft(){return clone(creativeDraft)},setTool:name=>setTool(name),
- get performance(){return {preview:previewScheduler.getStats(),composition:previewCache.getStats(),polygonCache:{hits:polygonCacheStats.hits,misses:polygonCacheStats.misses},heap:performance.memory?{usedJSHeapSize:performance.memory.usedJSHeapSize,totalJSHeapSize:performance.memory.totalJSHeapSize}:null}}};
+ get performance(){return {preview:previewScheduler.getStats(),composition:previewCache.getStats(),textures:previewTextureStats(),textureRender:{...textureRenderStats},polygonCache:{hits:polygonCacheStats.hits,misses:polygonCacheStats.misses},heap:performance.memory?{usedJSHeapSize:performance.memory.usedJSHeapSize,totalJSHeapSize:performance.memory.totalJSHeapSize}:null}}};
 function showToast(s,error=false){let el=$('toast');el.textContent=s;el.hidden=false;el.classList.toggle('error',error);clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.hidden=true,4000);}
 function status(s){$('status').textContent=s;}
 function scheduleCache(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>{try{localStorage.setItem(currentKey,JSON.stringify(store.doc));}catch(e){status('Local recovery cache unavailable');}},350);}
@@ -361,12 +361,18 @@ document.addEventListener('visibilitychange',updatePreviewVisibility);
 let desktopHealthPending=false,desktopHealthTimer=null;
 function sendDesktopHealth(phase='periodic'){
  if(!sessionToken||location.hostname!=='wails.localhost'||desktopHealthPending)return;
- const metrics=previewScheduler.getStats(),composition=previewCache.getStats();const bounds=wrap.getBoundingClientRect();
+ const metrics=previewScheduler.getStats(),composition=previewCache.getStats(),textures=previewTextureStats(),texturePass=textureRenderStats;const bounds=wrap.getBoundingClientRect();
  const body={phase,renders:metrics.renders,invalidations:metrics.invalidations,
  resizeEvents:metrics.resizeEvents,skippedHidden:metrics.skippedHidden,
  lastRenderMs:metrics.lastRenderMs,maxRenderMs:metrics.maxRenderMs,
  framePending:metrics.framePending,baseRenders:composition.baseRenders,baseHits:composition.baseHits,
- baseDrawMs:composition.baseRenderMs,previewPixels:canvas.width*canvas.height,previewVisible:metrics.visible,
+ baseDrawMs:composition.baseRenderMs,previewPixels:canvas.width*canvas.height,
+ textureCacheHits:textures.hits,textureCacheMisses:textures.misses,textureCachePixels:textures.livePixels,
+ texturePrepareMs:textures.lastPrepareMs,textureWorldMs:texturePass.lastWorldMs,
+ textureMaterialMs:texturePass.lastMaterialsMs,textureReliefMs:texturePass.lastReliefMs,
+ textureRasterCalls:texturePass.filteredRasterCalls,texturePreparedCalls:texturePass.preparedRasterCalls,
+ textureRasterCopies:texturePass.rasterCopies,textureCulledCopies:texturePass.culledCopies,
+ previewVisible:metrics.visible,
  documentHidden:document.hidden,webviewWidth:bounds.width,webviewHeight:bounds.height};
  desktopHealthPending=true;
  const controller=new AbortController();
@@ -386,11 +392,11 @@ function updateCanvasSize(){let box=wrap.getBoundingClientRect(),ratio=store.doc
 function renderPreviewNow(){if(!countries.length)return;let {w,h}=updateCanvasSize();let doc=store.doc;if(dragPreview){doc=clone(doc);if(dragPreview.camera)doc.camera={...doc.camera,...dragPreview.camera};if(dragPreview.anchor){let o=doc.objects[dragPreview.id];if(o)o.anchor=dragPreview.anchor;}if(dragPreview.object)doc.objects[dragPreview.id]=dragPreview.object;}
  if(dragPreview){
   // Moving an object or the camera genuinely changes the underlying scene.
-  renderScene(ctx,doc,countries,images,w,h,{preview:true,selection:store.selection,soloId});
+  renderScene(ctx,doc,countries,images,w,h,{preview:true,fastTextures:true,selection:store.selection,soloId});
  }else{
   previewCache.paint(ctx,{
    doc,w,h,solo:soloId,assetsVersion:previewResourcesVersion,
-   drawBase:surface=>renderScene(surface,doc,countries,images,w,h,{preview:false,soloId}),
+   drawBase:surface=>renderScene(surface,doc,countries,images,w,h,{preview:false,fastTextures:true,soloId}),
    drawOverlay:surface=>drawPreviewSelection(surface,doc,countries,images,w,h,store.selection)
   });
  }

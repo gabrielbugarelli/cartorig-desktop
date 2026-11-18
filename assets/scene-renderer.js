@@ -5,7 +5,13 @@ import {paletteFor,resolveStyle,themeValue} from './style-resolver.js';
 import {withIsolatedSurface,blending,applyAtmosphere,setRenderTile} from './style-effects.js';
 import {paintMapLabels} from './map-labels.js';
 import {countryForRegion} from './geo-catalog.js';
+import {createFilteredTextureCache,visibleRasterShifts} from './texture-cache.js';
 const rad=Math.PI/180;
+const preparedTextureCache=createFilteredTextureCache();
+let fastTexturePreview=false;
+const textureNow=()=>typeof performance==='undefined'?Date.now():performance.now();
+export const previewTextureStats=()=>preparedTextureCache.getStats();
+export const textureRenderStats={lastWorldMs:0,lastMaterialsMs:0,lastReliefMs:0,lastRasterFilterMs:0,filteredRasterCalls:0,preparedRasterCalls:0,rasterCopies:0,culledCopies:0};
 const clampLongitude=v=>((Number(v)+180)%360+360)%360-180;
 const points=g=>g?.type==='Polygon'?[g.coordinates]:g?.type==='MultiPolygon'?g.coordinates:[];
 export const polygonParts=c=>points(c?.geometry);
@@ -43,7 +49,32 @@ function drawPolygon(ctx,doc,geometry,w,h,fill=true,stroke=false){
  if(paths){for(const path of paths){if(fill)ctx.fill(path,'evenodd');if(stroke)ctx.stroke(path);}return;}
  for(const shift of [-360,0,360]){drawPolygonPath(ctx,doc,geometry,w,h,shift);if(fill)ctx.fill('evenodd');if(stroke)ctx.stroke();}
 }
-function raster(ctx,doc,img,w,h){if(!img?.complete||!img.naturalWidth)return false;let k=scaleFor(doc,w,h),theta=(doc.camera.bearing||0)*rad;ctx.save();ctx.translate(w/2,h/2);ctx.rotate(theta);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';for(let shift=-1;shift<=1;shift++)ctx.drawImage(img,(-180-doc.camera.center_lon+360*shift)*k,(doc.camera.center_lat-90)*k,360*k,180*k);ctx.restore();return true;}
+function raster(ctx,doc,img,w,h){
+ if(!img||img.complete===false||!(img.naturalWidth||img.width))return false;
+ const k=scaleFor(doc,w,h),theta=(doc.camera.bearing||0)*rad;
+ const shifts=visibleRasterShifts({width:w,height:h,k,center_lon:doc.camera.center_lon,center_lat:doc.camera.center_lat,bearing:doc.camera.bearing||0});
+ textureRenderStats.rasterCopies+=shifts.length;textureRenderStats.culledCopies+=3-shifts.length;
+ ctx.save();ctx.translate(w/2,h/2);ctx.rotate(theta);
+ ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality=fastTexturePreview?'medium':'high';
+ for(const shift of shifts)ctx.drawImage(img,(-180-doc.camera.center_lon+360*shift)*k,(doc.camera.center_lat-90)*k,360*k,180*k);
+ ctx.restore();return true;
+}
+function rasterFiltered(ctx,doc,img,w,h,filter){
+ const started=textureNow();textureRenderStats.filteredRasterCalls++;
+ // Prepare large JPEGs once at bounded preview resolution, then reuse them.
+ if(fastTexturePreview){
+  const prepared=preparedTextureCache.get(img,filter);
+  if(prepared){
+   textureRenderStats.preparedRasterCalls++;
+   const result=raster(ctx,doc,prepared,w,h);
+   textureRenderStats.lastRasterFilterMs=textureNow()-started;
+   return result;
+  }
+ }
+ // Export path: original source and full-quality per-pass filter.
+ ctx.save();ctx.filter=filter;const result=raster(ctx,doc,img,w,h);ctx.restore();
+ textureRenderStats.lastRasterFilterMs=textureNow()-started;return result;
+}
 // Textures are local bundled images, never remote resources. The source names
 // are validated by StyleResolver and the Source Manifest.
 function terrainTexture(doc,palette){
@@ -57,11 +88,11 @@ function drawLandTextureClipped(ctx,doc,countries,images,img,w,h,alpha,filter){
  if(typeof Path2D==='function'){
   // Reuse the land mask already shared by shading and print materials.
   const masks=materialMasks(doc,countries,images,w,h);
-  if(masks){ctx.clip(masks.land,'evenodd');ctx.globalAlpha*=alpha;ctx.filter=filter;raster(ctx,doc,img,w,h);}
+  if(masks){ctx.clip(masks.land,'evenodd');ctx.globalAlpha*=alpha;rasterFiltered(ctx,doc,img,w,h,filter);}
  }else{ // Canvas without Path2D: transparent mask, no land shape may leak into sea
   const layer=document.createElement('canvas');layer.width=w;layer.height=h;
-  const g=layer.getContext('2d');g.filter=filter;raster(g,doc,img,w,h);
-  g.filter='none';g.globalCompositeOperation='destination-in';g.fillStyle='#fff';
+  const g=layer.getContext('2d');rasterFiltered(g,doc,img,w,h,filter);
+  g.globalCompositeOperation='destination-in';g.fillStyle='#fff';
   for(const c of visible)drawPolygon(g,doc,c.geometry,w,h,true,false);
   ctx.globalAlpha*=alpha;ctx.drawImage(layer,0,0);layer.width=0;layer.height=0;
  }
@@ -105,15 +136,19 @@ function paintMaterial(ctx,images,doc,key,strengthKey,mask,w,h,masks){
  ctx.restore();
 }
 function paintSceneMaterials(ctx,doc,countries,images,w,h){
+ textureRenderStats.lastMaterialsMs=0;
  if(!texturesEnabled(doc))return;
+ const started=textureNow();
  const masks=materialMasks(doc,countries,images,w,h);
  // Support is a texture of the editorial medium, NOT geographical height.
  paintMaterial(ctx,images,doc,'surface_material','surface_strength','all',w,h,masks);
  paintMaterial(ctx,images,doc,'ocean_material','ocean_material_strength','ocean',w,h,masks);
  paintMaterial(ctx,images,doc,'land_material','land_material_strength','land',w,h,masks);
  paintMaterial(ctx,images,doc,'cartographic_finish','finish_strength','all',w,h,masks);
+ textureRenderStats.lastMaterialsMs=textureNow()-started;
 }
 function paintReliefProfile(ctx,doc,countries,images,w,h){
+ textureRenderStats.lastReliefMs=0;
  if(!texturesEnabled(doc))return;
  const profile=themeValue(doc,'relief_profile');
  const strength=themeValue(doc,'relief_strength');
@@ -124,12 +159,15 @@ function paintReliefProfile(ctx,doc,countries,images,w,h){
  if(!grade)return;
  const masks=materialMasks(doc,countries,images,w,h);
  if(!masks)return;
+ const started=textureNow();
  ctx.save();ctx.clip(masks.land,'evenodd');
  ctx.globalAlpha*=Math.min(.55,strength*.55);
- ctx.globalCompositeOperation='multiply';ctx.filter=grade;
- raster(ctx,doc,shade,w,h);ctx.restore();
+ ctx.globalCompositeOperation='multiply';
+ rasterFiltered(ctx,doc,shade,w,h,grade);ctx.restore();
+ textureRenderStats.lastReliefMs=textureNow()-started;
 }
 function drawWorld(ctx,doc,countries,images,w,h){
+ const started=textureNow();
  const theme=paletteFor(doc),o=doc.theme?.overrides||{};
  ctx.save();ctx.globalAlpha*=themeValue(doc,'ocean_opacity');ctx.fillStyle=theme.ocean;ctx.fillRect(0,0,w,h);ctx.restore();
  const src=terrainTexture(doc,theme),texture=src&&images[src],hasTexture=!!texture?.naturalWidth;
@@ -137,7 +175,7 @@ function drawWorld(ctx,doc,countries,images,w,h){
  if(hasTexture){
   if(themeValue(doc,'ocean_mode')==='solid'||themeValue(doc,'land_opacity')!==1){
    drawLandTextureClipped(ctx,doc,countries,images,texture,w,h,themeValue(doc,'land_opacity'),filter);
-  }else{ctx.save();ctx.filter=filter;raster(ctx,doc,texture,w,h);ctx.restore();}
+  }else{rasterFiltered(ctx,doc,texture,w,h,filter);}
  }else{
   ctx.save();ctx.fillStyle=theme.land;ctx.globalAlpha*=themeValue(doc,'land_opacity');
   let visible=images._geo?.getCountriesForDraw(doc.camera.zoom)||countries;
@@ -148,8 +186,9 @@ function drawWorld(ctx,doc,countries,images,w,h){
  if(texturesEnabled(doc)&&themeValue(doc,'terrain_enabled')&&themeValue(doc,'terrain_strength')>0){
   const shade=images[themeValue(doc,'terrain_source')];
   if(shade?.naturalWidth){ctx.save();ctx.globalAlpha*=themeValue(doc,'terrain_strength');
-   ctx.globalCompositeOperation='multiply';ctx.filter=`grayscale(1) contrast(${themeValue(doc,'terrain_contrast')})`;
-   const masks=materialMasks(doc,countries,images,w,h);if(masks){ctx.clip(masks.land,'evenodd');raster(ctx,doc,shade,w,h);}ctx.restore();}
+   ctx.globalCompositeOperation='multiply';
+   const masks=materialMasks(doc,countries,images,w,h);
+   if(masks){ctx.clip(masks.land,'evenodd');rasterFiltered(ctx,doc,shade,w,h,`grayscale(1) contrast(${themeValue(doc,'terrain_contrast')})`);}ctx.restore();}
  }
  // Optional 1.4.6 reference look grading: apply a gentle color wash only
  // inside actual land polygons. Country shapes are cached and WGS84-anchored;
@@ -166,7 +205,7 @@ function drawWorld(ctx,doc,countries,images,w,h){
  if(doc.theme.id==='night'){
   ctx.save();let grad=ctx.createRadialGradient(w/2,h/2,0,w/2,h/2,Math.max(w,h)*.8);
   grad.addColorStop(0,'#00000000');grad.addColorStop(1,'#000000aa');ctx.fillStyle=grad;ctx.fillRect(0,0,w,h);ctx.restore();
- }
+ } textureRenderStats.lastWorldMs=textureNow()-started;
 }
 function drawGrid(ctx,doc,w,h){
  const theme=paletteFor(doc),factor=h/1080;
@@ -213,7 +252,10 @@ export function drawObject(ctx,doc,obj,countriesByIso,countries,images,w,h){
  const style=resolveStyle(doc,obj);
  withIsolatedSurface(ctx,w,h,(target)=>paintObject(target,doc,obj,countriesByIso,countries,images,w,h,style),{...style,opacity:clamp(obj.opacity??1,0,1)});
 }
-export function renderScene(ctx,doc,countries,images,w,h,{onlyIds=null,preview=false,selection=[],soloId=null,tile=null,includeMapLabels=false}={}){
+export function renderScene(ctx,doc,countries,images,w,h,{onlyIds=null,preview=false,fastTextures=false,selection=[],soloId=null,tile=null,includeMapLabels=false}={}){
+ const previousTextureMode=fastTexturePreview;
+ fastTexturePreview=fastTextures===true;
+ textureRenderStats.filteredRasterCalls=0;textureRenderStats.preparedRasterCalls=0;textureRenderStats.rasterCopies=0;textureRenderStats.culledCopies=0;
  const previous=tile?setRenderTile(tile):null;ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);if(tile)ctx.translate(-tile.x,-tile.y);try {
  const byIso=new Map(countries.map(c=>[c.iso,c]));
  const allowed=onlyIds?new Set(onlyIds):null;
@@ -245,7 +287,7 @@ export function renderScene(ctx,doc,countries,images,w,h,{onlyIds=null,preview=f
  // pixels must be preserved on transparent exports.
  if(!allowed){ctx.save();ctx.globalCompositeOperation='source-atop';applyAtmosphere(ctx,w,h,{atmosphere_vignette:themeValue(doc,'atmosphere_vignette'),atmosphere_tint:themeValue(doc,'atmosphere_tint'),atmosphere_tint_mix:themeValue(doc,'atmosphere_tint_mix')});ctx.restore();}
  if(preview)drawPreviewSelection(ctx,doc,countries,images,w,h,selection);
- } finally {ctx.restore();if(tile)setRenderTile(previous)}
+ } finally {fastTexturePreview=previousTextureMode;ctx.restore();if(tile)setRenderTile(previous)}
 }
 // Selection handles are separate from the expensive atlas composition.
 export function drawPreviewSelection(ctx,doc,countries,images,w,h,selection=[]){
