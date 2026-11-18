@@ -1,6 +1,7 @@
 /* CartoRig 1.3 inspector — editors for static creative objects. MIT. */
 import {MARKER_SYMBOLS,SHAPES,ROUTE_TYPES,geoDistance,resolveLink} from './creative-engine.js';
 import {drawCreative} from './creative-renderer.js';
+import {resolveStyle} from './style-resolver.js';
 export function browserFontAvailable(family){
  if(typeof document==='undefined')return true;
  const name=String(family||'').replace(/["\\]/g,'');if(['sans-serif','serif','monospace','system-ui'].includes(name.toLowerCase()))return true;
@@ -64,7 +65,10 @@ export function creativeInspector(root,obj,doc,{exec,field,check,group,locked,to
  }
  if(obj.type==='Shape'){
   let g=group(root,'DRAWING & ANNOTATION');
-  choose(g,'Shape kind',SHAPES,obj.shape_kind,v=>update('shape_kind',v));choose(g,'Coordinate space',[['geo','Geographic (WGS84)'],['screen','Screen relative']],obj.coordinate_space,v=>convertShape(obj,v));editStyle(g,'#eab766');color(g,'Fill','fill_color','#a9653d');color(g,'Text color','text_color','#ffffff');
+  choose(g,'Shape kind',SHAPES,obj.shape_kind,v=>update('shape_kind',v));choose(g,'Coordinate space',[['geo','Geographic (WGS84)'],['screen','Screen relative']],obj.coordinate_space,v=>convertShape(obj,v));editStyle(g,'#eab766');color(g,'Fill','fill_color','#a9653d');
+  // Match the displayed swatch to the effective renderer color, including
+  // inherited Callout colors in older .cartorig projects.
+  color(g,'Text color','text_color',resolveStyle(doc,obj).text_color||'#ffffff');
   if(obj.shape_kind==='Callout'){textarea(g,'Callout text',obj.text||'',v=>update('text',v));color(g,'Box background','background_color','#123049');
    if(obj.coordinate_space==='geo'){
     choose(g,'Text box follows',[['geo','Map (recommended)'],['screen','Screen (fixed position)']],obj.callout_box?'screen':'geo',mode=>setCalloutBoxMode(obj,mode));
