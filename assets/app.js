@@ -99,16 +99,6 @@ function renderCountryList({append=false}={}){
  const browsing=Boolean(ct||country||kind!=='All');
  if(!q&&!browsing){
   count.textContent='';
-  const empty=document.createElement('div');empty.className='ux-empty-state ux-geo-start';
-  const title=document.createElement('strong');title.textContent='Find a place to add to your map';
-  const hint=document.createElement('p');hint.textContent='Search for a country, state or city, or browse by type.';
-  const actions=document.createElement('div');actions.className='ux-empty-actions';
-  for(const [label,kind] of [['Browse countries','Country'],['Browse states','State'],['Browse cities','City']]){
-   const button=document.createElement('button');button.type='button';button.textContent=label;
-   button.onclick=()=>{$('geoType').value=kind;queueCountrySearch(true);};
-   actions.append(button);
-  }
-  empty.append(title,hint,actions);root.append(empty);
   return;
  }
  const {items,total,hasMore}=geo?geo.searchPage(q,kind,ct,GEO_RESULTS_PAGE,country,geoSearchOffset):{items:[],total:0,hasMore:false};
@@ -286,13 +276,6 @@ function renderTree(){let root=$('layerTree'),focused=document.activeElement?.cl
   const clear=document.createElement('button');clear.type='button';clear.textContent='Clear search';
   clear.onclick=()=>{$('layerSearch').value='';renderTree();$('layerSearch').focus();};
   empty.append(title,hint,clear);root.append(empty);
- }else if(!q&&!Object.values(doc.objects).some(o=>!['WorldMap','Grid','Borders'].includes(o.type))){
-  const note=document.createElement('div');note.className='ux-empty-state ux-scene-empty';
-  const title=document.createElement('strong');title.textContent='Build your first map layer';
-  const hint=document.createElement('p');hint.textContent='Add a country or city from Geography, then customize it here.';
-  const browse=document.createElement('button');browse.type='button';browse.textContent='Add a place';
-  browse.onclick=()=>{setTab('geography');$('countrySearch').focus();};
-  note.append(title,hint,browse);root.append(note);
  }
  if(focused){const previous=[...root.querySelectorAll('[role=treeitem]')].find(n=>n.dataset.id===focused);if(previous){previous.tabIndex=0;previous.focus({preventScroll:true});}}
  if(!root.querySelector('[tabindex="0"]')){const first=root.querySelector('[role=treeitem]');if(first)first.tabIndex=0;}
