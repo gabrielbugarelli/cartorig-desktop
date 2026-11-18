@@ -13,7 +13,7 @@ def browser_bundle(assets, include_app=True):
         'style-effects.js':'blending withIsolatedSurface applyAtmosphere setRenderTile',
         'creative-renderer.js':'clearCreativeImageCache settleCreativeAssets shapeScreenPoints creativeHandles drawCreative hitCreative',
         'creative-inspector.js':'browserFontAvailable creativeInspector',
-        'geo-catalog.js':'GEO_TYPES geoNormalize geoDisplayName geoDisplayParent GeoCatalog featureBounds featureFocusBounds',
+        'geo-catalog.js':'GEO_TYPES geoNormalize geoDisplayName geoDisplayParent GeoCatalog featureBounds featureFocusBounds canonicalCountryId normalizeCountryIds countryForRegion',
         'map-labels.js':'labelOptions layoutMapLabels paintMapLabels labelKinds',
         'scene-renderer.js':'polygonParts boundsOf pointInside scaleFor project unproject unwrapRing polygonCacheStats clearPolygonPathCache drawObject renderScene renderMapLabelLayer renderRegionMask hitTest hitTestCandidates',
         'style-studio.js':'setupStyleStudio',
