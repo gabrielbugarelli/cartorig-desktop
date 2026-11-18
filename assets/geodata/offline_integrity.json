@@ -1,0 +1,128 @@
+{
+  "schema": "cartorig-offline-integrity-v1",
+  "app_version": "1.2.3",
+  "generated_at": "2026-11-16T20:58:44.362875+00:00",
+  "sources_locked": true,
+  "datasets": {
+    "admin1": {
+      "dataset_id": "ne_10m_admin1_world",
+      "scale": "10m",
+      "source_url": "https://raw.githubusercontent.com/datasets/geo-ne-admin1/main/data/admin1.geojson",
+      "source_repository": "datasets/geo-ne-admin1",
+      "source_path": "data/admin1.geojson",
+      "git_blob_sha1": "15b12703a702387c48da9183016b1101974f0160",
+      "sha256": "163108e4628cef6afe0c7f3aeace21dcfa327bff59c91b65e9b60dbaf0739904",
+      "bytes": 44484806,
+      "feature_count": 4596,
+      "country_count": 253,
+      "geometry_types": {
+        "Polygon": 3945,
+        "MultiPolygon": 651
+      },
+      "vertex_count": 1295319,
+      "features_with_holes": 94,
+      "multipolygons": 651,
+      "unnamed_features": [
+        {
+          "feature_index": 2549,
+          "iso_3166_2": "AQ-X02~",
+          "adm1_code": "ATA+99?",
+          "parent": "Antarctica"
+        },
+        {
+          "feature_index": 2965,
+          "iso_3166_2": "KI-X02~",
+          "adm1_code": "KIR+99?",
+          "parent": "Kiribati"
+        },
+        {
+          "feature_index": 3114,
+          "iso_3166_2": "CO-X01~",
+          "adm1_code": "COL+99?",
+          "parent": "Colombia"
+        },
+        {
+          "feature_index": 3122,
+          "iso_3166_2": "VE-X01~",
+          "adm1_code": "VEN+99?",
+          "parent": "Venezuela"
+        },
+        {
+          "feature_index": 3123,
+          "iso_3166_2": "AI-X00",
+          "adm1_code": "AIA+99?",
+          "parent": "Anguilla"
+        },
+        {
+          "feature_index": 3141,
+          "iso_3166_2": "MX-X01~",
+          "adm1_code": "MEX+99?",
+          "parent": "Mexico"
+        },
+        {
+          "feature_index": 3154,
+          "iso_3166_2": "RU-X01~",
+          "adm1_code": "RUS+99?",
+          "parent": "Russia"
+        }
+      ],
+      "coverage": "global as represented by Natural Earth",
+      "license": "Natural Earth public domain; third-party Admin1 metadata redistribution terms should be checked",
+      "status": "installed",
+      "integrity": "verified",
+      "file": "admin1_world.geojson",
+      "sample_features": [
+        {
+          "name": "Bayern",
+          "name_en": "Bavaria",
+          "parent": "Germany"
+        },
+        {
+          "name": "Ontario",
+          "name_en": "Ontario",
+          "parent": "Canada"
+        },
+        {
+          "name": "Québec",
+          "name_en": "Quebec",
+          "parent": "Canada"
+        },
+        {
+          "name": "California",
+          "name_en": "California",
+          "parent": "United States of America"
+        },
+        {
+          "name": "Mato Grosso",
+          "name_en": "Mato Grosso",
+          "parent": "Brazil"
+        }
+      ]
+    },
+    "cities": {
+      "dataset_id": "ne_10m_populated_places_world",
+      "scale": "10m",
+      "source_url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_populated_places.geojson",
+      "source_repository": "nvkelso/natural-earth-vector",
+      "source_path": "geojson/ne_10m_populated_places.geojson",
+      "git_blob_sha1": "376fb028c390a7a23213800ae4babaa6f534a0f3",
+      "sha256": "9b8e3de09048ef00dfc70357dbb9fa324493f214b5e0ae4daf1aa79a8d10116b",
+      "bytes": 19359003,
+      "feature_count": 7342,
+      "country_count": 228,
+      "geometry_types": {
+        "Point": 7342
+      },
+      "vertex_count": 7342,
+      "features_with_holes": 0,
+      "multipolygons": 0,
+      "unnamed_features": [],
+      "coverage": "global as represented by Natural Earth",
+      "license": "Natural Earth public domain; third-party Admin1 metadata redistribution terms should be checked",
+      "status": "installed",
+      "integrity": "verified",
+      "file": "cities_world_full.geojson",
+      "sample_features": []
+    }
+  }
+}

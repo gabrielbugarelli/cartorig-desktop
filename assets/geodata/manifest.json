@@ -1,0 +1,120 @@
+{
+  "format": "cartorig-geo-manifest",
+  "schema_version": "1.2.3",
+  "source": "Natural Earth + IBGE-derived Brazil + curated points",
+  "note": "1.2.3: Global Admin1 10m and high-density city dataset are cached on installation where accessible; 27 Brazil state polygons and 244 worldwide point locations are packaged for offline first use.",
+  "datasets": [
+    {
+      "dataset_id": "ne_admin0_110m",
+      "scale": "110m",
+      "feature_type": "Country",
+      "status": "installed",
+      "feature_count": 177,
+      "path": "../countries.json",
+      "source_url": "https://www.naturalearthdata.com/downloads/110m-cultural-vectors/"
+    },
+    {
+      "dataset_id": "ne_continents_110m",
+      "scale": "110m",
+      "feature_type": "Continent",
+      "status": "installed",
+      "feature_count": 6,
+      "path": "continents.json",
+      "source_url": "https://www.naturalearthdata.com/"
+    },
+    {
+      "dataset_id": "curated_points",
+      "scale": "point",
+      "feature_type": "City",
+      "status": "installed",
+      "feature_count": 28,
+      "path": "localities.json",
+      "coverage_notes": "Legacy curated anchors merged with 244 bundled points (Natural Earth 110m plus Munich from 50m)."
+    },
+    {
+      "dataset_id": "br_ibge_admin1_editorial",
+      "scale": "editorial-generalized",
+      "feature_type": "State",
+      "status": "installed",
+      "feature_count": 27,
+      "path": "br_states.geojson",
+      "coverage_notes": "27 real Admin 1 polygon geometries for Brazil, simplified for cartographic composition; source CC0, derived from IBGE",
+      "source_url": "https://github.com/henriquemalvar/br-geojson/blob/main/dist/estados.geojson",
+      "source_sha1": "d06e54a3a03519ae3fa48fe3d85da6c3558cd47d"
+    },
+    {
+      "dataset_id": "ne_50m_Country",
+      "scale": "50m",
+      "feature_type": "Country",
+      "status": "not_installed",
+      "source_url": "https://github.com/nvkelso/natural-earth-vector/tree/master/geojson",
+      "coverage_notes": "User may import compatible GeoJSON without an online connection"
+    },
+    {
+      "dataset_id": "ne_10m_Country",
+      "scale": "10m",
+      "feature_type": "Country",
+      "status": "not_installed",
+      "source_url": "https://github.com/nvkelso/natural-earth-vector/tree/master/geojson",
+      "coverage_notes": "User may import compatible GeoJSON without an online connection"
+    },
+    {
+      "dataset_id": "ne_10m_State",
+      "scale": "10m",
+      "feature_type": "State",
+      "status": "installed_after_first_online_setup",
+      "source_url": "https://raw.githubusercontent.com/datasets/geo-ne-admin1/main/data/admin1.geojson",
+      "coverage_notes": "Worldwide administrative subdivisions, acquired automatically and cached once. This precompiled build does not yet embed the global source data.",
+      "path": "LocalAppData/CartoRig/admin1-world.geojson"
+    },
+    {
+      "dataset_id": "ne_50m_City",
+      "scale": "50m",
+      "feature_type": "City",
+      "status": "not_installed",
+      "source_url": "https://github.com/nvkelso/natural-earth-vector/tree/master/geojson",
+      "coverage_notes": "User may import compatible GeoJSON without an online connection"
+    },
+    {
+      "dataset_id": "ne_50m_River",
+      "scale": "50m",
+      "feature_type": "River",
+      "status": "not_installed",
+      "source_url": "https://github.com/nvkelso/natural-earth-vector/tree/master/geojson",
+      "coverage_notes": "User may import compatible GeoJSON without an online connection"
+    },
+    {
+      "dataset_id": "ne_50m_Lake",
+      "scale": "50m",
+      "feature_type": "Lake",
+      "status": "not_installed",
+      "source_url": "https://github.com/nvkelso/natural-earth-vector/tree/master/geojson",
+      "coverage_notes": "User may import compatible GeoJSON without an online connection"
+    },
+    {
+      "dataset_id": "ne_50m_Coastline",
+      "scale": "50m",
+      "feature_type": "Coastline",
+      "status": "not_installed",
+      "source_url": "https://github.com/nvkelso/natural-earth-vector/tree/master/geojson",
+      "coverage_notes": "User may import compatible GeoJSON without an online connection"
+    },
+    {
+      "dataset_id": "ne_world_city_bundled",
+      "feature_type": "City",
+      "feature_count": 244,
+      "scale": "110m plus Munich 50m",
+      "status": "installed",
+      "path": "cities_world.geojson",
+      "source_url": "https://github.com/nvkelso/natural-earth-vector/tree/master/geojson",
+      "coverage_notes": "Real Natural Earth point coordinates; curated sample. Extended 10m city catalogue installs separately."
+    },
+    {
+      "dataset_id": "ne_10m_populated_world",
+      "feature_type": "City",
+      "status": "installed_after_first_online_setup",
+      "source_url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_populated_places.geojson",
+      "path": "LocalAppData/CartoRig/cities-world.geojson"
+    }
+  ]
+}

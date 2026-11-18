@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0b1018"><title>Map Composer — Cinematic Cartography</title><link rel="stylesheet" href="/assets/style.css"></head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand"><div class="mark">◈</div><div class="brand-text"><b>MAP COMPOSER</b><span>CINEMATIC CARTOGRAPHY</span></div><span class="version">v1.0</span></div>
+    <div class="top-actions">
+      <button class="btn ghost" id="newProject" title="Iniciar novo projeto">Novo</button>
+      <button class="btn ghost" id="openProject">Abrir projeto</button>
+      <button class="btn ghost" id="saveProject">Salvar projeto</button>
+      <span class="top-divider"></span>
+      <button class="btn primary" id="exportImage">Exportar PNG <span class="arrow">↗</span></button>
+      <button class="btn accent" id="exportLayers">Camadas p/ Fusion <span class="arrow">↓</span></button>
+      <button class="btn ghost" id="quitApp" title="Encerrar o servidor local do aplicativo">Sair</button>
+    </div>
+  </header>
+  <div class="workspace">
+    <aside class="side left">
+      <div class="section-title">PROJETO</div>
+      <label class="field-label" for="projectName">Nome da composição</label>
+      <input id="projectName" class="control" value="Geopolitica — 01" maxlength="120" />
+      <div class="section-title space">REGIÕES GEOGRÁFICAS</div>
+      <label class="field-label" for="continent">Continente</label>
+      <select id="continent" class="control"><option value="">Todos os continentes</option><option>Africa</option><option>Asia</option><option>Europe</option><option>North America</option><option>South America</option><option>Oceania</option></select>
+      <label class="field-label" for="countrySearch">Pesquisar país</label>
+      <div class="search-wrap"><span>⌕</span><input id="countrySearch" class="control" placeholder="Brasil, Rússia, China..." autocomplete="off"/></div>
+      <div class="result-label"><span>RESULTADOS</span><span id="resultCount">—</span></div>
+      <div class="country-results" id="countryResults"><div class="placeholder">Carregando países...</div></div>
+      <div class="section-title space">TERRITÓRIOS DESTACADOS <span id="selectedCount">0</span></div>
+      <div class="highlights" id="highlights"><span class="placeholder">Selecione países acima.</span></div>
+      <div class="sidebar-footer"><span class="status-dot"></span><span>Dados locais · sem conexão</span></div>
+    </aside>
+    <main class="stage">
+      <div class="stage-header"><div class="breadcrumbs">COMPOSIÇÃO <span>/</span> <b id="stageName">Geopolitica — 01</b></div><div class="stage-tools"><button id="worldView" class="toolbtn" title="Enquadrar planeta">⊞ <span>Planeta</span></button><button id="zoomOut" class="toolbtn" title="Reduzir zoom">−</button><span class="zoom" id="zoomValue">100%</span><button id="zoomIn" class="toolbtn" title="Aumentar zoom">+</button><button id="centerView" class="toolbtn" title="Centralizar seleção">◎</button></div></div>
+      <div class="canvas-wrap" id="canvasWrap"><canvas id="mapCanvas"></canvas><div class="canvas-hint" id="canvasHint">Arraste para navegar · scroll para zoom</div><div class="mode-tag" id="modeTag" hidden></div><div class="canvas-corner">WGS84 · Equiretangular · Offline</div></div>
+      <div class="stage-footer"><div><span class="status-dot"></span> <span id="status">Mapa pronto</span></div><div><span id="cursorCoords">0.00°, 0.00°</span><span class="footer-split">|</span><span id="previewSize">—</span></div></div>
+    </main>
+    <aside class="side right">
+      <div class="section-title">ESTILO CINEMATOGRÁFICO</div>
+      <div class="presets" id="presets">
+        <button data-style="dark" class="preset active"><span class="preset-swatch dark"></span><b>Cinematic Dark</b></button>
+        <button data-style="atlas" class="preset"><span class="preset-swatch atlas"></span><b>Vintage Atlas</b></button>
+        <button data-style="tactical" class="preset"><span class="preset-swatch tactical"></span><b>Tactical Ops</b></button>
+        <button data-style="relief" class="preset"><span class="preset-swatch relief"></span><b>Shaded Relief</b></button>
+        <button data-style="satellite" class="preset"><span class="preset-swatch satellite"></span><b>Satellite Earth</b></button>
+        <button data-style="night" class="preset"><span class="preset-swatch night"></span><b>Nightfall</b></button>
+        <button data-style="elevation" class="preset"><span class="preset-swatch elevation"></span><b>Elevation ETOPO</b></button>
+      </div>
+      <div class="section-title space">CAMADAS</div>
+      <div class="layer-list">
+        <label><input type="checkbox" data-layer="background" checked><span class="layer-icon">▨</span><span>Mapa base</span><span class="checkmark"></span></label>
+        <label><input type="checkbox" data-layer="grid" checked><span class="layer-icon">⌗</span><span>Grade geográfica</span><span class="checkmark"></span></label>
+        <label><input type="checkbox" data-layer="borders" checked><span class="layer-icon">⬡</span><span>Fronteiras</span><span class="checkmark"></span></label>
+        <label><input type="checkbox" data-layer="highlights" checked><span class="layer-icon">◈</span><span>Destaque de países</span><span class="checkmark"></span></label>
+        <label><input type="checkbox" data-layer="routes" checked><span class="layer-icon">↝</span><span>Rotas / linhas</span><span class="checkmark"></span></label>
+        <label><input type="checkbox" data-layer="labels" checked><span class="layer-icon">T</span><span>Textos / rótulos</span><span class="checkmark"></span></label>
+      </div>
+      <div class="section-title space">APARÊNCIA</div>
+      <div class="settings-grid"><label class="field-label" for="highlightColor">Cor de destaque</label><input type="color" id="highlightColor" value="#d86c52"></div>
+      <label class="field-label" for="highlightOpacity">Opacidade do destaque <span id="opacityValue">80%</span></label><input id="highlightOpacity" type="range" min="5" max="100" value="80" class="range"/>
+      <div class="settings-grid"><label class="field-label" for="borderColor">Cor das fronteiras</label><input type="color" id="borderColor" value="#8c9aad"></div>
+      <label class="field-label" for="borderWidth">Espessura fronteiras <span id="borderValue">1.2</span></label><input id="borderWidth" type="range" min="0" max="4" step="0.2" value="1.2" class="range"/>
+      <div class="section-title space">ANOTAÇÕES E ROTAS</div>
+      <div class="tool-grid"><button class="btn tool" id="addLabel">＋ Texto</button><button class="btn tool" id="addRoute">↗ Rota</button></div>
+      <div class="annotation-counts"><span id="labelCount">0 textos</span><button class="text-btn" id="clearLabels">Limpar</button></div>
+      <div class="annotation-counts"><span id="routeCount">0 rotas</span><button class="text-btn" id="clearRoutes">Limpar</button></div>
+      <div class="section-title space">SAÍDA / EXPORTAÇÃO</div>
+      <label class="field-label" for="resolution">Resolução</label>
+      <select id="resolution" class="control"><option value="1920x1080">Full HD · 1920 × 1080</option><option value="3840x2160" selected>4K UHD · 3840 × 2160</option><option value="4096x2160">DCI 4K · 4096 × 2160</option><option value="7680x4320">8K UHD · 7680 × 4320</option></select>
+      <label class="field-label export-check"><input type="checkbox" id="transparent"> PNG final transparente (sem mapa base)</label>
+      <div class="notice">Camadas em PNG com transparência e alinhamento idêntico para composições independentes no Fusion.</div>
+    </aside>
+  </div>
+</div>
+<input type="file" id="projectFile" accept=".json,application/json" hidden>
+<div id="toast" class="toast" hidden></div>
+<script src="/assets/app.js" defer></script>
+</body></html>

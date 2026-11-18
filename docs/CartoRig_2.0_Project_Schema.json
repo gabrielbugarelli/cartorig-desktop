@@ -1,0 +1,768 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cartorig.local/schemas/project-2.0.json",
+  "title": "CartoRig Scene Project 2.0 — preliminary validation schema",
+  "description": "Contrato estrutural para implementar SceneStore; regras de dependencias e validade geoespacial exigem validacao semantica alem do JSON Schema.",
+  "type": "object",
+  "required": [
+    "format",
+    "schema_version",
+    "project_id",
+    "name",
+    "canvas",
+    "camera",
+    "theme",
+    "scene",
+    "objects",
+    "asset_refs"
+  ],
+  "properties": {
+    "format": {
+      "const": "cartorig-project"
+    },
+    "schema_version": {
+      "const": "2.0.0"
+    },
+    "project_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 180
+    },
+    "canvas": {
+      "type": "object",
+      "required": [
+        "width",
+        "height",
+        "design_height",
+        "transparent"
+      ],
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 128,
+          "maximum": 32768
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 128,
+          "maximum": 32768
+        },
+        "design_height": {
+          "const": 1080
+        },
+        "transparent": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "camera": {
+      "type": "object",
+      "required": [
+        "projection",
+        "center_lat",
+        "center_lon",
+        "zoom",
+        "bearing"
+      ],
+      "properties": {
+        "projection": {
+          "const": "equirectangular"
+        },
+        "center_lat": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "center_lon": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "zoom": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 128
+        },
+        "bearing": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        }
+      },
+      "additionalProperties": false
+    },
+    "geodata_manifest_id": {
+      "type": "string"
+    },
+    "theme": {
+      "type": "object",
+      "required": [
+        "id",
+        "overrides"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "overrides": {
+          "type": "object"
+        },
+        "type_defaults": {
+          "type": "object",
+          "propertyNames": {
+            "enum": [
+              "Region",
+              "Route",
+              "Marker",
+              "Label",
+              "Shape",
+              "Group"
+            ]
+          },
+          "additionalProperties": {
+            "type": "object",
+            "maxProperties": 50
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "scene": {
+      "type": "object",
+      "required": [
+        "root_ids"
+      ],
+      "properties": {
+        "root_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "objects": {
+      "type": "object",
+      "propertyNames": {
+        "format": "uuid"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/sceneObject"
+      }
+    },
+    "asset_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "asset_id",
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "asset_id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{64}$"
+          },
+          "license": {
+            "type": "string"
+          },
+          "mime": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "saved_views": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "export_presets": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "extensions": {
+      "type": "object"
+    },
+    "style_library": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "$ref": "#/$defs/stylePreset"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sceneObject": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "name",
+        "parent_id",
+        "visible",
+        "locked",
+        "opacity",
+        "style"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "enum": [
+            "WorldMap",
+            "Grid",
+            "Borders",
+            "Region",
+            "Route",
+            "Marker",
+            "Label",
+            "Shape",
+            "ImageOverlay",
+            "Group"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 180
+        },
+        "parent_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "locked": {
+          "type": "boolean"
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "style": {
+          "type": "object",
+          "properties": {
+            "fill_color": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$"
+            },
+            "fill_opacity": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "stroke_color": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$"
+            },
+            "stroke_width": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 40
+            },
+            "stroke_opacity": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "additionalProperties": true
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "dataset_id": {
+              "type": "string"
+            },
+            "source_version": {
+              "type": "string"
+            },
+            "feature_id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "region_kind": {
+          "enum": [
+            "Continent",
+            "Country",
+            "State"
+          ]
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "uniqueItems": true
+        },
+        "anchor": {
+          "type": "object",
+          "required": [
+            "lat",
+            "lon"
+          ],
+          "properties": {
+            "lat": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "lon": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            },
+            "linked_object_id": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "from": {
+          "type": "object",
+          "required": [
+            "lat",
+            "lon"
+          ],
+          "properties": {
+            "lat": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "lon": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            },
+            "linked_object_id": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "to": {
+          "type": "object",
+          "required": [
+            "lat",
+            "lon"
+          ],
+          "properties": {
+            "lat": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "lon": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            },
+            "linked_object_id": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "path_type": {
+          "enum": [
+            "Straight",
+            "Curved",
+            "Geodesic",
+            "Custom"
+          ]
+        },
+        "curvature": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "waypoints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "lat",
+              "lon"
+            ],
+            "properties": {
+              "lat": {
+                "type": "number",
+                "minimum": -90,
+                "maximum": 90
+              },
+              "lon": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180
+              },
+              "linked_object_id": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 10000
+        },
+        "position_mode": {
+          "enum": [
+            "geo",
+            "screen"
+          ]
+        },
+        "screen_position": {
+          "type": "object",
+          "required": [
+            "x",
+            "y"
+          ],
+          "properties": {
+            "x": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "y": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "symbol": {
+          "type": "string"
+        },
+        "asset_ref": {
+          "type": "string"
+        },
+        "shape_kind": {
+          "enum": [
+            "Line",
+            "Arrow",
+            "Rectangle",
+            "Ellipse",
+            "Polygon",
+            "Freehand",
+            "Callout",
+            "Distance"
+          ]
+        },
+        "coordinate_space": {
+          "enum": [
+            "geo",
+            "screen"
+          ]
+        },
+        "geometry": {
+          "type": "object"
+        },
+        "typography": {
+          "type": "object"
+        },
+        "effects": {
+          "type": "object"
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "embedded_geometry": {
+          "type": "object",
+          "required": [
+            "type",
+            "coordinates"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "Polygon",
+                "MultiPolygon"
+              ]
+            },
+            "coordinates": {
+              "type": "array"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Optional snapshot of a genuine imported administrative geometry. This snapshot must not be synthesized from a location point."
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "Region"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "source",
+              "region_kind"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "Route"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "from",
+              "to",
+              "path_type"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "Label"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "text",
+              "position_mode"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "Marker"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "anchor",
+              "symbol"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "Group"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "children"
+            ]
+          }
+        }
+      ]
+    },
+    "stylePreset": {
+      "type": "object",
+      "required": [
+        "format",
+        "schema_version",
+        "id",
+        "name",
+        "palette",
+        "defaults"
+      ],
+      "properties": {
+        "format": {
+          "const": "cartorig-style"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 90
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "palette": {
+          "type": "object",
+          "maxProperties": 16
+        },
+        "defaults": {
+          "type": "object",
+          "maxProperties": 10
+        },
+        "overrides": {
+          "type": "object",
+          "maxProperties": 50
+        },
+        "metadata": {
+          "type": "object",
+          "maxProperties": 8,
+          "propertyNames": {
+            "enum": [
+              "origin",
+              "source_theme",
+              "created_at",
+              "updated_at",
+              "author",
+              "license",
+              "source_version"
+            ]
+          },
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "asset_refs": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "required": [
+              "asset_id",
+              "relative_path",
+              "sha256",
+              "mime_type"
+            ],
+            "properties": {
+              "asset_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "relative_path": {
+                "type": "string",
+                "pattern": "^assets/[A-Za-z0-9_-]+\\.(?:svg|png|jpg|woff2)$"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-fA-F]{64}$"
+              },
+              "mime_type": {
+                "enum": [
+                  "image/svg+xml",
+                  "image/png",
+                  "image/jpeg",
+                  "font/woff2"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cartorig.local/schemas/style-1.0.json",
+  "title": "CartoRig Cinematic Style",
+  "allOf": [
+    {
+      "$ref": "CartoRig_2.0_Project_Schema.json#/$defs/stylePreset"
+    }
+  ]
+}

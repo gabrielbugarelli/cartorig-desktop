@@ -1,0 +1,23 @@
+{
+  "schema": "cartorig-source-lock-v1",
+  "sources": {
+    "admin1": {
+      "repository": "datasets/geo-ne-admin1",
+      "path": "data/admin1.geojson",
+      "url": "https://raw.githubusercontent.com/datasets/geo-ne-admin1/main/data/admin1.geojson",
+      "git_blob_sha1": "15b12703a702387c48da9183016b1101974f0160",
+      "feature_count": 4596,
+      "scale": "10m",
+      "source": "Natural Earth via datasets/geo-ne-admin1"
+    },
+    "cities": {
+      "repository": "nvkelso/natural-earth-vector",
+      "path": "geojson/ne_10m_populated_places.geojson",
+      "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_populated_places.geojson",
+      "git_blob_sha1": "376fb028c390a7a23213800ae4babaa6f534a0f3",
+      "feature_count": 7342,
+      "scale": "10m",
+      "source": "Natural Earth 10m Populated Places"
+    }
+  }
+}

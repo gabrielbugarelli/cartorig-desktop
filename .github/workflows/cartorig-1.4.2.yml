@@ -1,0 +1,42 @@
+name: CartoRig 1.4 Offline Windows
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v1.4.*']
+jobs:
+  build-windows:
+    runs-on: windows-2022
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install visual-test tools
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pillow playwright
+          python -m playwright install chromium
+      - name: Enforce complete offline geodata; run tests; build Windows setup and portable
+        shell: pwsh
+        run: ./scripts/build-windows.ps1
+      - name: Publish validated artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: CartoRig-1.4.2-Windows-x64-Offline
+          path: |
+            dist/CartoRig-1.4.2-Setup-Windows-x64.exe
+            dist/CartoRig-1.4.2-Portable-Windows-x64.exe
+            dist/CartoRig-1.4.2-Source-Complete-Offline.zip
+            dist/CartoRig-1.4.2-Release-Checksums.json
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,218 @@
+[
+  {
+    "id": "metadata:BR:Acre",
+    "name": "Acre",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Alagoas",
+    "name": "Alagoas",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Amapa",
+    "name": "Amapá",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Amazonas",
+    "name": "Amazonas",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Bahia",
+    "name": "Bahia",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Ceara",
+    "name": "Ceará",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Distrito_Federal",
+    "name": "Distrito Federal",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Espirito_Santo",
+    "name": "Espírito Santo",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Goias",
+    "name": "Goiás",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Maranhao",
+    "name": "Maranhão",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Mato_Grosso",
+    "name": "Mato Grosso",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Mato_Grosso_do_Sul",
+    "name": "Mato Grosso do Sul",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Minas_Gerais",
+    "name": "Minas Gerais",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Para",
+    "name": "Pará",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Paraiba",
+    "name": "Paraíba",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Parana",
+    "name": "Paraná",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Pernambuco",
+    "name": "Pernambuco",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Piaui",
+    "name": "Piauí",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Rio_de_Janeiro",
+    "name": "Rio de Janeiro",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Rio_Grande_do_Norte",
+    "name": "Rio Grande do Norte",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Rio_Grande_do_Sul",
+    "name": "Rio Grande do Sul",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Rondonia",
+    "name": "Rondônia",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Roraima",
+    "name": "Roraima",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Santa_Catarina",
+    "name": "Santa Catarina",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Sao_Paulo",
+    "name": "São Paulo",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Sergipe",
+    "name": "Sergipe",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  },
+  {
+    "id": "metadata:BR:Tocantins",
+    "name": "Tocantins",
+    "parent": "Brazil",
+    "type": "State",
+    "source_id": "countryinfo-br-provinces-names",
+    "geometry_type": "Unavailable"
+  }
+]

@@ -1,0 +1,192 @@
+{
+  "format": "cartorig-project",
+  "schema_version": "2.0.0",
+  "project_id": "713531cf-5fef-4274-925f-b0df056800db",
+  "revision": 0,
+  "name": "South America — Brazil & Argentina",
+  "canvas": {
+    "width": 3840,
+    "height": 2160,
+    "design_height": 1080,
+    "transparent": false
+  },
+  "camera": {
+    "projection": "equirectangular",
+    "center_lon": -57,
+    "center_lat": -21,
+    "zoom": 3.3,
+    "bearing": 0
+  },
+  "theme": {
+    "id": "dark",
+    "overrides": {
+      "border_color": "#8c9aad",
+      "border_width": 1.2
+    }
+  },
+  "scene": {
+    "root_ids": [
+      "5152f5ff-ff40-434b-abee-f9a59230342e",
+      "79ced4ab-dc91-4cca-9cc0-47c00df493a1",
+      "6fdb3d64-84d4-418e-8db0-41d6ea3d4ffb",
+      "138b9e3f-30aa-4e86-b64d-cbc8a4669683",
+      "e978a5e3-ed6d-48be-a9e6-fffc9a1bed55",
+      "b07d64e2-e4a2-4994-9a74-5de32fba9267",
+      "8238051d-e22e-4766-bd8a-34bc1ad1ad1e"
+    ]
+  },
+  "objects": {
+    "5152f5ff-ff40-434b-abee-f9a59230342e": {
+      "id": "5152f5ff-ff40-434b-abee-f9a59230342e",
+      "type": "WorldMap",
+      "name": "World Map",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "parent_id": null,
+      "style": {}
+    },
+    "79ced4ab-dc91-4cca-9cc0-47c00df493a1": {
+      "id": "79ced4ab-dc91-4cca-9cc0-47c00df493a1",
+      "type": "Grid",
+      "name": "Geographic Grid",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "parent_id": null,
+      "style": {}
+    },
+    "6fdb3d64-84d4-418e-8db0-41d6ea3d4ffb": {
+      "id": "6fdb3d64-84d4-418e-8db0-41d6ea3d4ffb",
+      "type": "Borders",
+      "name": "Political Borders",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "parent_id": null,
+      "style": {}
+    },
+    "e39369e5-95c4-4776-a287-8a154d068049": {
+      "id": "e39369e5-95c4-4776-a287-8a154d068049",
+      "type": "Region",
+      "name": "Brazil",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "parent_id": "138b9e3f-30aa-4e86-b64d-cbc8a4669683",
+      "style": {
+        "fill_color": "#c56651",
+        "fill_opacity": 0.86,
+        "stroke_width": 2
+      },
+      "region_kind": "Country",
+      "source": {
+        "dataset_id": "ne_admin0_110m",
+        "feature_id": "BRA"
+      }
+    },
+    "dbe0b34c-7a3c-44d4-b2db-6d282de544a0": {
+      "id": "dbe0b34c-7a3c-44d4-b2db-6d282de544a0",
+      "type": "Region",
+      "name": "Argentina",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "parent_id": "138b9e3f-30aa-4e86-b64d-cbc8a4669683",
+      "style": {
+        "fill_color": "#6b93a5",
+        "fill_opacity": 0.86,
+        "stroke_width": 2
+      },
+      "region_kind": "Country",
+      "source": {
+        "dataset_id": "ne_admin0_110m",
+        "feature_id": "ARG"
+      }
+    },
+    "138b9e3f-30aa-4e86-b64d-cbc8a4669683": {
+      "id": "138b9e3f-30aa-4e86-b64d-cbc8a4669683",
+      "type": "Group",
+      "name": "South American Countries",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "parent_id": null,
+      "style": {},
+      "children": [
+        "e39369e5-95c4-4776-a287-8a154d068049",
+        "dbe0b34c-7a3c-44d4-b2db-6d282de544a0"
+      ]
+    },
+    "e978a5e3-ed6d-48be-a9e6-fffc9a1bed55": {
+      "type": "Route",
+      "name": "Brasília → Buenos Aires",
+      "from": {
+        "lon": -47.88,
+        "lat": -15.79
+      },
+      "to": {
+        "lon": -58.38,
+        "lat": -34.6
+      },
+      "path_type": "Straight",
+      "style": {
+        "stroke_color": "#ecc47e",
+        "stroke_width": 4,
+        "dashed": true
+      },
+      "id": "e978a5e3-ed6d-48be-a9e6-fffc9a1bed55",
+      "parent_id": null,
+      "visible": true,
+      "locked": false,
+      "opacity": 1
+    },
+    "b07d64e2-e4a2-4994-9a74-5de32fba9267": {
+      "type": "Label",
+      "name": "Brazil label",
+      "text": "BRAZIL",
+      "position_mode": "geo",
+      "anchor": {
+        "lon": -52.5,
+        "lat": -8.5
+      },
+      "typography": {
+        "font_size": 30
+      },
+      "style": {
+        "text_color": "#ffffff"
+      },
+      "id": "b07d64e2-e4a2-4994-9a74-5de32fba9267",
+      "parent_id": null,
+      "visible": true,
+      "locked": false,
+      "opacity": 1
+    },
+    "8238051d-e22e-4766-bd8a-34bc1ad1ad1e": {
+      "type": "Label",
+      "name": "Argentina label",
+      "text": "ARGENTINA",
+      "position_mode": "geo",
+      "anchor": {
+        "lon": -63.4,
+        "lat": -37.5
+      },
+      "typography": {
+        "font_size": 28
+      },
+      "style": {
+        "text_color": "#ffffff"
+      },
+      "id": "8238051d-e22e-4766-bd8a-34bc1ad1ad1e",
+      "parent_id": null,
+      "visible": true,
+      "locked": false,
+      "opacity": 1
+    }
+  },
+  "asset_refs": [],
+  "saved_views": [],
+  "export_presets": [],
+  "created_at": "2026-11-14T00:02:20.387937+00:00",
+  "updated_at": "2026-11-14T00:02:20.387937+00:00"
+}

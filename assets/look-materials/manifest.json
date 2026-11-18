@@ -1,0 +1,112 @@
+{
+  "generator": "tools/generate_look_materials.py",
+  "license": "Original procedurally generated textures; MIT",
+  "materials": {
+    "archival_sheet": {
+      "bytes": 64927,
+      "mode": "archive",
+      "sha256": "b89ee76b043adf4974b300bc5327c7e4bec29a32cc41c9993e25eaec33e6a55a"
+    },
+    "canvas_weave": {
+      "bytes": 30773,
+      "mode": "weave",
+      "sha256": "c02ebf0c8138da20203c2d4de9731b4493729f41e7ae4e1fbd3aa11d7fe4a35c"
+    },
+    "contour_etch": {
+      "bytes": 20099,
+      "mode": "contour",
+      "sha256": "4f7b8f4ff5442cc11adea97d2ab3e2619dbe6d0aca8696df3089a54a242e322b"
+    },
+    "copperplate": {
+      "bytes": 65422,
+      "mode": "engraving",
+      "sha256": "05e5c3bcdbf1817db5adbd6fbdff8d7fd9d626d59c4a46d1cd04f36f5da44e4b"
+    },
+    "dark_grain": {
+      "bytes": 62021,
+      "mode": "dark",
+      "sha256": "cb3f5aec1d4646cb14fef544fa990d9ed0518a2f7cbcf87afd5c253c669b6d39"
+    },
+    "deep_sea": {
+      "bytes": 57018,
+      "mode": "deep",
+      "sha256": "2f6c6e7146c90624c32d80e7f1ce66551717733c457c7090260af58df0c05a1e"
+    },
+    "document_wear": {
+      "bytes": 74097,
+      "mode": "wear",
+      "sha256": "41cfb6a54bae50f0480b8863040648e0ec7e6e6e98eaee31c42a47dcfedce40e"
+    },
+    "dry_brush": {
+      "bytes": 75808,
+      "mode": "brush",
+      "sha256": "040472bac65b7e5f140111d2d38939b1c4ef749bb66697ad02049dd2a7e2bc8b"
+    },
+    "engraving_lines": {
+      "bytes": 63759,
+      "mode": "engraving",
+      "sha256": "00ef7d53659b56d5e94776761c8af7fe2889006fea33116367bf475bb7da7979"
+    },
+    "ink_grain": {
+      "bytes": 70777,
+      "mode": "ink",
+      "sha256": "abc984e56635fb55233265943364a921dae626d9b7f92f5dbfa53331958ab33f"
+    },
+    "linen": {
+      "bytes": 62691,
+      "mode": "fiber",
+      "sha256": "d5d7cc6665da0e9365b59dfa5acd43e5098d4b3bce05d4091af35d1aae8c3d3e"
+    },
+    "marine_noise": {
+      "bytes": 64831,
+      "mode": "marine",
+      "sha256": "e165f3c1ec9d7fafe8a29bb17a7216880d384b4c127677de6375c1bc1fd88daa"
+    },
+    "marine_waves": {
+      "bytes": 62748,
+      "mode": "waves",
+      "sha256": "0f9a312ce76e2a8d495fbf55f37633fee132085b48af467124315472ea3cfcb2"
+    },
+    "mineral_grit": {
+      "bytes": 72693,
+      "mode": "mineral",
+      "sha256": "1536252346f2e7a6fa1ae5c52959f58e015543c0e967fa7bdcc8d7238284a2f6"
+    },
+    "paper_aged": {
+      "bytes": 59713,
+      "mode": "aged",
+      "sha256": "74a4daf1844e0841b5523e57d6c626b77b9e9a7dd1127911c2ac406425987d1d"
+    },
+    "paper_clean": {
+      "bytes": 53172,
+      "mode": "paper",
+      "sha256": "4d318ecf648f0a0c70959221983d4a79785ed751225df65751710816ecb5bfc4"
+    },
+    "paper_fibrous": {
+      "bytes": 67672,
+      "mode": "fiber",
+      "sha256": "7f7af8e5cf0e0f84c3ca145f358b992a7ea3edc0285935e9d11ad7538b09056d"
+    },
+    "paper_foxed": {
+      "bytes": 57599,
+      "mode": "foxed",
+      "sha256": "32db52f720e78b555ac6e6249ae5a799ebaa235a57bb3b62b2ebe1a219176a0d"
+    },
+    "print_plate": {
+      "bytes": 59892,
+      "mode": "plate",
+      "sha256": "7d4ce64aa6176812760853ad27d0da9573d273ae75eb0c167531c21270927836"
+    },
+    "tactical_noise": {
+      "bytes": 57250,
+      "mode": "tactical",
+      "sha256": "5a8154df1b78a378286d6de46d5f663f456cce10270ddfbc19c126fa13397e57"
+    },
+    "watercolor_wash": {
+      "bytes": 26908,
+      "mode": "wash",
+      "sha256": "475d3c573852f200577f7c6a439ee28cd87e98d06ee149c459d1fb135ea462c5"
+    }
+  },
+  "schema_version": 1
+}

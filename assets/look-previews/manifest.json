@@ -1,0 +1,263 @@
+{
+  "counts": {
+    "original": 9,
+    "references": 27,
+    "total": 36
+  },
+  "description": "Static native look thumbnails. Built from bundled assets via production Canvas renderer.",
+  "generator": "tools/generate_scene_look_previews.py",
+  "previews": {
+    "age-of-sail": {
+      "height": 162,
+      "path": "look-previews/age-of-sail.png",
+      "sha256": "faa6aeb886e86d81f2f9c664425e21e773b658c2a96b2df28d985fcc5984ac27",
+      "width": 288
+    },
+    "alpine-survey": {
+      "height": 162,
+      "path": "look-previews/alpine-survey.png",
+      "sha256": "de57d67a4b5905167a62cec223df4f12ea1233cbd10d9819583d8485fd815a3b",
+      "width": 288
+    },
+    "antique-campaign": {
+      "height": 162,
+      "path": "look-previews/antique-campaign.png",
+      "sha256": "5bf47596da15f5e6f54139d16ec6261a38e28b6fcdd9c690df295a00079390d5",
+      "width": 288
+    },
+    "atlas": {
+      "height": 162,
+      "path": "look-previews/atlas.png",
+      "sha256": "c18e012244b065cb70cf267f624990f80b67c4d3442957284fcdc37fb709114d",
+      "width": 288
+    },
+    "cold-war-archive": {
+      "height": 162,
+      "path": "look-previews/cold-war-archive.png",
+      "sha256": "edf04f6a54d89b29e8d258f94edaac7389b792be8cf8616f1219ad3f445a8c5a",
+      "width": 288
+    },
+    "compass-antiquity": {
+      "height": 162,
+      "path": "look-previews/compass-antiquity.png",
+      "sha256": "641e98da594ae77a24e0c72dbe769bad9ddd74fc66c27c491720971b72df3c52",
+      "width": 288
+    },
+    "contour-radar": {
+      "height": 162,
+      "path": "look-previews/contour-radar.png",
+      "sha256": "9a09a34697135220cd55ce09dd72b3e54fa27b95af92926987532991178da959",
+      "width": 288
+    },
+    "copper-topography": {
+      "height": 162,
+      "path": "look-previews/copper-topography.png",
+      "sha256": "34ee6b2c31c25036e00a18f4890d064e51ac2b3c2308f6f8442c27f2713c0e3f",
+      "width": 288
+    },
+    "crimson-geopolitics": {
+      "height": 162,
+      "path": "look-previews/crimson-geopolitics.png",
+      "sha256": "59c4d9392bc87195cda6a378ffa5a11b331dfd7f7c4ec4a14bd25e67973f5709",
+      "width": 288
+    },
+    "dark": {
+      "height": 162,
+      "path": "look-previews/dark.png",
+      "sha256": "2850610c916cffeaf40b717eceb763b184fe598761d2ea022804c83a72491693",
+      "width": 288
+    },
+    "desert-caravan": {
+      "height": 162,
+      "path": "look-previews/desert-caravan.png",
+      "sha256": "ea804a37e1e43d1098dabb2c95eb720709eb23d7a85e0fd5fff3dda1db8b5776",
+      "width": 288
+    },
+    "elevation": {
+      "height": 162,
+      "path": "look-previews/elevation.png",
+      "sha256": "a697a49a0448a7b4d7cc1f7a5946f408740f2214a096d3467688edb6070fb0bc",
+      "width": 288
+    },
+    "empire-spotlight": {
+      "height": 162,
+      "path": "look-previews/empire-spotlight.png",
+      "sha256": "49a24cf269769fab6358d0add6678a4ed8c2d4389cf644ddbe0523dd7f692080",
+      "width": 288
+    },
+    "engraved-chronicles": {
+      "height": 162,
+      "path": "look-previews/engraved-chronicles.png",
+      "sha256": "8b53694e9d7941a010cbf1bea6a1a8ef4e90ae875fb4990babc7e943d67a3ced",
+      "width": 288
+    },
+    "explorer-chart": {
+      "height": 162,
+      "path": "look-previews/explorer-chart.png",
+      "sha256": "35fe292fb2042e144d2976604fdad1d44511c55519451643e6ec1f542233872f",
+      "width": 288
+    },
+    "fantasy-cartographer": {
+      "height": 162,
+      "path": "look-previews/fantasy-cartographer.png",
+      "sha256": "84a80805acd3621e5bb5e17488fbbec4e3b4c6666014616a7d08aec65f07007b",
+      "width": 288
+    },
+    "great-lakes-depth": {
+      "height": 162,
+      "path": "look-previews/great-lakes-depth.png",
+      "sha256": "a28bffcc0f19497915faa65bbbcc1411d09cb80b5a80cccf0311527b92b6cfee",
+      "width": 288
+    },
+    "heritage-documentary": {
+      "height": 162,
+      "path": "look-previews/heritage-documentary.png",
+      "sha256": "2efb7cfe434adb72135b0fba04f19b73bc28aa5f8b38d261afc7a0b454d423d2",
+      "width": 288
+    },
+    "historical": {
+      "height": 162,
+      "path": "look-previews/historical.png",
+      "sha256": "d4a8ea7ac8fbab9d4d31ef9923690bf92b196516c1a4704c491591cd5b40b006",
+      "width": 288
+    },
+    "imperial-conquest": {
+      "height": 162,
+      "path": "look-previews/imperial-conquest.png",
+      "sha256": "f88c0a6cee02699ac1f857b439b044bb9aa6e986b1995a5d2820fe3192bdd2d0",
+      "width": 288
+    },
+    "iron-curtain-noir": {
+      "height": 162,
+      "path": "look-previews/iron-curtain-noir.png",
+      "sha256": "1a6f79215c0f2320667262fbd2104e37091dee9d9bbbc7de4a99bd4f233ea65f",
+      "width": 288
+    },
+    "maritime-manuscript": {
+      "height": 162,
+      "path": "look-previews/maritime-manuscript.png",
+      "sha256": "4a7584ae5484a474efaa2e199906d078784d866ed54add5a57c7b8a14302a5f7",
+      "width": 288
+    },
+    "neon-heritage": {
+      "height": 162,
+      "path": "look-previews/neon-heritage.png",
+      "sha256": "bee030ab68674673434538ac97ffd7ff223eecba86fdd6bb295398caaab94a9e",
+      "width": 288
+    },
+    "night": {
+      "height": 162,
+      "path": "look-previews/night.png",
+      "sha256": "1d59a05c22bc3f1f7f464eddd10f8ff76de13cff572e1ffdc5216d90495466dd",
+      "width": 288
+    },
+    "noir-monochrome": {
+      "height": 162,
+      "path": "look-previews/noir-monochrome.png",
+      "sha256": "9029d5b49629f1791623bd1a001e6279a2a443758536c95d35e7957d7175f798",
+      "width": 288
+    },
+    "obsidian-minimal": {
+      "height": 162,
+      "path": "look-previews/obsidian-minimal.png",
+      "sha256": "1d33bae04f4020e38bf3d4b7c4f90b9711e584d64151f67ef2ec8fd1de7700e4",
+      "width": 288
+    },
+    "oceanic-engraving": {
+      "height": 162,
+      "path": "look-previews/oceanic-engraving.png",
+      "sha256": "e3aa45dcd7859b9eb44e27c5ea66ce096bbdcda49923b346bd7b4f74390a8f98",
+      "width": 288
+    },
+    "relief": {
+      "height": 162,
+      "path": "look-previews/relief.png",
+      "sha256": "c99303eefa31c34cd642319f22e128386ca201ac39e948ce8905fd7dc7883fe6",
+      "width": 288
+    },
+    "satellite": {
+      "height": 162,
+      "path": "look-previews/satellite.png",
+      "sha256": "84b3e7a843c5c3f77a3153ec203a6db7f6387003ae4b3de2242cbbdff7b3224f",
+      "width": 288
+    },
+    "sepia-expedition": {
+      "height": 162,
+      "path": "look-previews/sepia-expedition.png",
+      "sha256": "c068502adfc971b2b8b8593d4370c3ae246c449007114880cd2b82f72f60ce0f",
+      "width": 288
+    },
+    "sultan-parchment": {
+      "height": 162,
+      "path": "look-previews/sultan-parchment.png",
+      "sha256": "a73e8ccff41d63f47e4f7d5c0b6586da048f758955c86b51a39274f201090f8b",
+      "width": 288
+    },
+    "tactical": {
+      "height": 162,
+      "path": "look-previews/tactical.png",
+      "sha256": "546e867f083e3a1e1b1ad610ce9a2df4c5ed11b9be63c94e7ba8ede911f6e47c",
+      "width": 288
+    },
+    "terrain": {
+      "height": 162,
+      "path": "look-previews/terrain.png",
+      "sha256": "947ae11605639f862b9d56bd99084794544ef6b889334ad015129d1af00ab857",
+      "width": 288
+    },
+    "tropical-explorer": {
+      "height": 162,
+      "path": "look-previews/tropical-explorer.png",
+      "sha256": "6fcfd3b006379dff22204a212d71e3afb621d1633d899dad0f81aa8aa5c1615d",
+      "width": 288
+    },
+    "turquoise-bathymetry": {
+      "height": 162,
+      "path": "look-previews/turquoise-bathymetry.png",
+      "sha256": "93f8270ebfd9b87e607c3e2c4ee1b4ac9c34bffcd6173cdf8b89eb4aff3745ab",
+      "width": 288
+    },
+    "vintage-coast-survey": {
+      "height": 162,
+      "path": "look-previews/vintage-coast-survey.png",
+      "sha256": "55d44494edc6bbb2d636c6a9e2ff3b77c03eade68e115785c12e139424ae7d40",
+      "width": 288
+    }
+  },
+  "schema_version": 1,
+  "sources": {
+    "bmng.jpg": "10f5389b365d7ece89f68a73ce5653fb5692145fde181fc64596d0d87cb89bb8",
+    "countries.json": "bf7a321705e67f50eded07ac46095f21e7d8c05977b8f2e91b4daf9f40a585b0",
+    "creative-engine.js": "89b5078dcea2c500cb4f6ad90224876c6edaf84a789de520518354a93f9b0a48",
+    "creative-renderer.js": "29a89bbe8a06a354d67c12a37aa7fb0797ae4f241daf91d5adfa82063f355c2b",
+    "etopo1.jpg": "ddb439e1e7b4975d5ee904d89a7c4a8e676d680809b5fb03996976154195de22",
+    "look-materials.js": "4268797b9cb00602935ccece861040e04b57228addc70ce17944021c154d0418",
+    "look-materials/archival_sheet.png": "b89ee76b043adf4974b300bc5327c7e4bec29a32cc41c9993e25eaec33e6a55a",
+    "look-materials/canvas_weave.png": "c02ebf0c8138da20203c2d4de9731b4493729f41e7ae4e1fbd3aa11d7fe4a35c",
+    "look-materials/contour_etch.png": "4f7b8f4ff5442cc11adea97d2ab3e2619dbe6d0aca8696df3089a54a242e322b",
+    "look-materials/copperplate.png": "05e5c3bcdbf1817db5adbd6fbdff8d7fd9d626d59c4a46d1cd04f36f5da44e4b",
+    "look-materials/dark_grain.png": "cb3f5aec1d4646cb14fef544fa990d9ed0518a2f7cbcf87afd5c253c669b6d39",
+    "look-materials/deep_sea.png": "2f6c6e7146c90624c32d80e7f1ce66551717733c457c7090260af58df0c05a1e",
+    "look-materials/document_wear.png": "41cfb6a54bae50f0480b8863040648e0ec7e6e6e98eaee31c42a47dcfedce40e",
+    "look-materials/dry_brush.png": "040472bac65b7e5f140111d2d38939b1c4ef749bb66697ad02049dd2a7e2bc8b",
+    "look-materials/engraving_lines.png": "00ef7d53659b56d5e94776761c8af7fe2889006fea33116367bf475bb7da7979",
+    "look-materials/ink_grain.png": "abc984e56635fb55233265943364a921dae626d9b7f92f5dbfa53331958ab33f",
+    "look-materials/linen.png": "d5d7cc6665da0e9365b59dfa5acd43e5098d4b3bce05d4091af35d1aae8c3d3e",
+    "look-materials/marine_noise.png": "e165f3c1ec9d7fafe8a29bb17a7216880d384b4c127677de6375c1bc1fd88daa",
+    "look-materials/marine_waves.png": "0f9a312ce76e2a8d495fbf55f37633fee132085b48af467124315472ea3cfcb2",
+    "look-materials/mineral_grit.png": "1536252346f2e7a6fa1ae5c52959f58e015543c0e967fa7bdcc8d7238284a2f6",
+    "look-materials/paper_aged.png": "74a4daf1844e0841b5523e57d6c626b77b9e9a7dd1127911c2ac406425987d1d",
+    "look-materials/paper_clean.png": "4d318ecf648f0a0c70959221983d4a79785ed751225df65751710816ecb5bfc4",
+    "look-materials/paper_fibrous.png": "7f7af8e5cf0e0f84c3ca145f358b992a7ea3edc0285935e9d11ad7538b09056d",
+    "look-materials/paper_foxed.png": "32db52f720e78b555ac6e6249ae5a799ebaa235a57bb3b62b2ebe1a219176a0d",
+    "look-materials/print_plate.png": "7d4ce64aa6176812760853ad27d0da9573d273ae75eb0c167531c21270927836",
+    "look-materials/tactical_noise.png": "5a8154df1b78a378286d6de46d5f663f456cce10270ddfbc19c126fa13397e57",
+    "look-materials/watercolor_wash.png": "475d3c573852f200577f7c6a439ee28cd87e98d06ee149c459d1fb135ea462c5",
+    "reference-looks.js": "2d1902df572aa1c9638cdbaebc0ae72e55cc937975c26de7c098adaab3c9c8a6",
+    "scene-core.js": "d5b4f177f889ed83bdcb95fba8b0d0789b10fdeb395898cd3186fd0a231c0df4",
+    "scene-renderer.js": "012feffcce3e00cec1436cfd64a94766f4c8bc064a45ee33ee6a22b08bb5462c",
+    "shadedrelief.jpg": "e52e46e82d14f7d321a287c9c323603cbe0fe9c25861e191eadfcad4129a39d0",
+    "style-effects.js": "e1ff459e96bcbea23ee7008e73677a40e98a4ed9cb1b3a8639573eba8d75ccd8",
+    "style-resolver.js": "6b10eeaaf4eacebe7a4abf2b1dcf2068bcac8ea0445b9122a87d917d837e70a4"
+  }
+}
