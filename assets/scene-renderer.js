@@ -7,6 +7,7 @@ import {paintMapLabels} from './map-labels.js';
 import {countryForRegion} from './geo-catalog.js';
 import {createFilteredTextureCache,visibleRasterShifts} from './texture-cache.js';
 import {createStateBoundaryPreview} from './state-boundaries.js';
+import {materialPatternTransform} from './material-projection.js';
 const rad=Math.PI/180;
 const preparedTextureCache=createFilteredTextureCache();
 const stateBoundaryPreview=createStateBoundaryPreview();
@@ -108,9 +109,26 @@ function drawLandTextureClipped(ctx,doc,countries,images,img,w,h,alpha,filter){
 function materialImage(images,name){
  return name==='none'?null:images['material-'+name];
 }
-function materialPattern(ctx,image){
+// Cache each CanvasPattern for its Canvas2D context/image pair. Updating the
+// affine matrix is much cheaper than recreating or filtering image textures.
+const materialPatternCache=new WeakMap();
+function materialPattern(ctx,image,doc,w,h){
  if(!image?.naturalWidth)return null;
- return ctx.createPattern(image,'repeat');
+ let patterns=materialPatternCache.get(ctx);
+ if(!patterns){patterns=new WeakMap();materialPatternCache.set(ctx,patterns);}
+ let pattern=patterns.get(image);
+ if(!pattern){pattern=ctx.createPattern(image,'repeat');if(!pattern)return null;patterns.set(image,pattern);}
+ const k=scaleFor(doc,w,h);
+ const transform=materialPatternTransform({w,h,k,center_lon:doc.camera.center_lon,center_lat:doc.camera.center_lat,bearing:doc.camera.bearing||0,imageWidth:image.naturalWidth});
+ // The matrix applies to the pattern, not the canvas: full-frame clip masks,
+ // compositing, and tiled PNG exports keep the same geographic alignment.
+ if(typeof pattern.setTransform==='function')pattern.setTransform(transform);
+ else{
+  // Older Canvas implementations lack CanvasPattern.setTransform; the caller
+  // can still render using context transforms when needed.
+  return {pattern,transform,fallback:true};
+ }
+ return {pattern,transform,fallback:false};
 }
 let materialMaskCache=new WeakMap();
 function materialMasks(doc,countries,images,w,h){
@@ -128,7 +146,7 @@ function paintMaterial(ctx,images,doc,key,strengthKey,mask,w,h,masks){
  const image=materialImage(images,themeValue(doc,key));
  const strength=themeValue(doc,strengthKey);
  if(!image?.naturalWidth||!(strength>0))return;
- const pattern=materialPattern(ctx,image);if(!pattern)return;
+ const material=materialPattern(ctx,image,doc,w,h);if(!material)return;
  // Transparent pixels in material PNGs provide a neutral base. Apply only
  // within valid geography for land / ocean material; no fake boundaries.
  ctx.save();
@@ -137,7 +155,19 @@ function paintMaterial(ctx,images,doc,key,strengthKey,mask,w,h,masks){
   ctx.clip(masks[mask],'evenodd');
  }
  ctx.globalAlpha*=strength;
- ctx.fillStyle=pattern;ctx.fillRect(0,0,w,h);
+ ctx.fillStyle=material.pattern;
+ if(material.fallback){
+  // Compatibility with older Canvas2D implementations: transform the context
+  // instead of the pattern, and paint precisely the inverse-mapped viewport.
+  const {a,b,c,d,e,f}=material.transform,det=a*d-b*c;
+  if(Math.abs(det)>1e-12){
+   const corners=[[0,0],[w,0],[w,h],[0,h]].map(([x,y])=>[(d*(x-e)-c*(y-f))/det,(-b*(x-e)+a*(y-f))/det]);
+   const left=Math.min(...corners.map(p=>p[0])),right=Math.max(...corners.map(p=>p[0]));
+   const top=Math.min(...corners.map(p=>p[1])),bottom=Math.max(...corners.map(p=>p[1]));
+   ctx.transform(a,b,c,d,e,f);
+   ctx.fillRect(left,top,right-left,bottom-top);
+  }
+ }else ctx.fillRect(0,0,w,h);
  ctx.restore();
 }
 function paintSceneMaterials(ctx,doc,countries,images,w,h){
