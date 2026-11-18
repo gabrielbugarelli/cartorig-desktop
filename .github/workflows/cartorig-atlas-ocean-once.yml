@@ -1,6 +1,7 @@
 name: CartoRig Atlas Clean Ocean One-time QA
 # UI/UX development: manually start builds only when a portable is needed.
 # Public repository + standard windows-2022 runner: no metered runner compute.
+# QA rerun after correcting the preexisting ocean texture assertion.
 # Single QA build on the free public standard runner; normal UI workflow
 # stays manual-only and this trigger is removed after verified download.
 on:
