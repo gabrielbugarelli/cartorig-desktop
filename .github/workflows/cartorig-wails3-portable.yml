@@ -45,6 +45,40 @@ jobs:
             throw "GUI process terminated immediately in hosted runner"
           }
           Write-Host "GUI process remained running after 8 seconds"
+          Add-Type -TypeDefinition @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class CartoRigWindow {
+            [DllImport("user32.dll", CharSet=CharSet.Unicode)]
+            public static extern IntPtr FindWindow(string cls, string caption);
+            [DllImport("user32.dll")]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            public static extern bool PostMessage(IntPtr h, uint message, IntPtr w, IntPtr l);
+            [DllImport("user32.dll")]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            public static extern bool IsWindowVisible(IntPtr h);
+          }
+          '@
+          $hwnd=[CartoRigWindow]::FindWindow($null,'CartoRig Desktop')
+          if ($hwnd -eq [IntPtr]::Zero) {
+            Write-Host "Window handle unavailable in CI session; interactive tray behavior remains to be checked on desktop."
+          } else {
+            if (-not [CartoRigWindow]::PostMessage($hwnd,0x0010,[IntPtr]::Zero,[IntPtr]::Zero)) { throw 'WM_CLOSE could not be sent' }
+            Start-Sleep -Seconds 2
+            $proc.Refresh()
+            if ($proc.HasExited) { throw 'Closing X terminated the process instead of hiding it' }
+            if ([CartoRigWindow]::IsWindowVisible($hwnd)) { throw 'Closing X did not hide the main window' }
+            Write-Host 'WM_CLOSE hid the window and the CartoRig process stayed running'
+            $second=Start-Process -FilePath $exe -PassThru
+            Start-Sleep -Seconds 3
+            $second.Refresh()
+            if (-not $second.HasExited) {
+              Stop-Process -Id $second.Id -Force
+              throw 'Second application instance did not exit'
+            }
+            if (-not [CartoRigWindow]::IsWindowVisible($hwnd)) { throw 'Second launch did not restore existing window' }
+            Write-Host 'Single-instance restore passed'
+          }
           Stop-Process -Id $proc.Id -Force
       - name: Upload Windows startup log
         if: always()

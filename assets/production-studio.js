@@ -86,8 +86,16 @@ export function setupProductionStudio({getDoc,getSelection,execute,getCountries,
    button.onclick=async()=>{
     button.disabled=true;
     try{
-     await json('/api/v2/autosave',projectDoc());
+     // Read the requested version before writing anything: a current map
+     // may share this autosave's project ID.
      const recovered=await(await api('/api/v2/recovery/'+encodeURIComponent(item.id))).json();
+     // Keep unsaved changes as a separate recovery; never overwrite the
+     // snapshot that the user selected for restoration.
+     const current=projectDoc();
+     current.project_id=crypto.randomUUID();
+     current.name+=' (Before recovery)';
+     current.revision=0;
+     await json('/api/v2/autosave',current);
      recovered.project_id=crypto.randomUUID();recovered.name+=' (Recovered)';
      replaceDoc(recovered);scheduleAutosave();
      closeModal('productionProjects');

@@ -15,6 +15,8 @@ assert.doesNotMatch(html,/id="quitApp"/);
 assert.doesNotMatch(app,/quitApp/);
 assert.doesNotMatch(studio,/Recover a newer CartoRig autosave\?/);
 assert.match(studio,/async function renderRecoveries\(\)/);
+assert.match(studio,/current.project_id=crypto.randomUUID\(\)/);
+assert.ok(studio.indexOf("const recovered=await(await api('/api/v2/recovery/")<studio.indexOf("current.project_id=crypto.randomUUID()"));
 assert.match(html,/id="prodRecoveries"/);
 assert.match(http,/Exit through the Windows notification area/);
 assert.match(build,/rsrc -ico/);
