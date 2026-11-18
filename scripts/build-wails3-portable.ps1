@@ -89,6 +89,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Recovery bulk selection UI regression failed' }
     & node tests/test_ui_stage1.mjs
     if ($LASTEXITCODE -ne 0) { throw 'UI stage-one contract regression failed' }
+    & node tests/test_ui_stage1_behavior.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Project Manager keyboard regression failed' }
     & node --check assets/app.js
     if ($LASTEXITCODE -ne 0) { throw 'Invalid editor JavaScript syntax' }
     & node --check assets/production-studio.js
