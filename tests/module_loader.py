@@ -17,6 +17,7 @@ def browser_bundle(assets, include_app=True):
         'map-labels.js':'labelOptions layoutMapLabels paintMapLabels labelKinds',
         'texture-cache.js':'PREVIEW_TEXTURE_MAX_PIXELS PREVIEW_TEXTURE_BUDGET_PIXELS createFilteredTextureCache visibleRasterShifts',
         'state-boundaries.js':'stateBoundaryTolerance simplifyStateRing visibleStateCopies createStateBoundaryPreview',
+        'material-projection.js':'MATERIAL_TILE_LONGITUDE_DEGREES materialPatternTransform',
         'scene-renderer.js':'polygonParts boundsOf pointInside scaleFor project unproject unwrapRing polygonCacheStats clearPolygonPathCache previewTextureStats textureRenderStats stateBoundaryStats drawObject renderScene renderMapLabelLayer renderRegionMask hitTest hitTestCandidates',
         'style-studio.js':'setupStyleStudio',
         'style-inspector.js':'renderAdvancedInspector',
