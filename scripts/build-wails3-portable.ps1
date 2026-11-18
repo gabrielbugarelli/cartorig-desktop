@@ -55,6 +55,8 @@ try {
     # Verify that only numerical browser diagnostics are accepted.
     & go test -run 'TestDesktop(ExportPath|Save)' ./...
     if ($LASTEXITCODE -ne 0) { throw 'Renamed native export regression failed' }
+    & go test -run 'TestRecoveryDelete' ./...
+    if ($LASTEXITCODE -ne 0) { throw 'Recovery deletion backend regression failed' }
     & go test -run TestDesktopHeartbeat ./...
     if ($LASTEXITCODE -ne 0) { throw 'Desktop heartbeat regression failed' }
     & go test -tags fullgeo ./...
@@ -83,6 +85,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'State boundary preview regression failed' }
     & node tests/test_label_stack.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Map label stacking regression failed' }
+    & node tests/test_recovery_bulk_ui.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Recovery bulk selection UI regression failed' }
     if (-not $SkipTests) {
         & go test ./...
         if ($LASTEXITCODE -ne 0) { throw 'Legacy CartoRig tests failed' }
