@@ -31,7 +31,8 @@
 <aside class="sidebar left" id="leftSidebar">
 <div class="tabs" role="tablist" aria-label="Left workspace"><button class="tab active" id="tabLayers" role="tab" aria-controls="panelLayers" tabindex="0" aria-selected="true">Scene</button><button class="tab" id="tabGeography" role="tab" aria-controls="panelGeography" tabindex="-1" aria-selected="false">Geography</button></div>
 <section id="panelLayers" class="pane" role="tabpanel" aria-labelledby="tabLayers">
-<div class="section-head ux-scene-actions"><div class="mini-actions"><button id="newGroup" title="Group selected or create empty group (Ctrl+G)" aria-label="Group selection or create group">▣ +</button><button id="duplicate" title="Duplicate (Ctrl+D)">⧉</button><button id="delete" title="Delete selected">×</button></div></div>
+<div class="ux-scene-primary"><button id="addPlaceFromScene" type="button" title="Find a country, state or city to add to this scene">+ Add place</button></div>
+<div class="section-head ux-scene-actions"><div class="mini-actions"><button id="newGroup" title="Group selected or create empty group (Ctrl+G)" aria-label="Create group (Ctrl+G)">+ Group</button><button id="duplicate" title="Duplicate selection (Ctrl+D)" aria-label="Duplicate selected object (Ctrl+D)">Copy</button><button id="delete" title="Delete selected layers" aria-label="Delete selected layers">Delete</button></div></div>
 <input id="layerSearch" class="control compact" placeholder="Find in layers…" aria-label="Find in layers" />
 <div class="tree-actions"><button id="ungroup" title="Ungroup (Ctrl+Shift+G)">Ungroup</button></div>
 <div id="layerTree" class="layer-tree" role="tree" aria-label="Scene objects"></div>
