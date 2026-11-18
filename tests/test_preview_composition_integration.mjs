@@ -7,7 +7,7 @@ assert.match(render,/if\(preview\)drawPreviewSelection\(/);
 assert.match(render,/const masks=materialMasks\(doc,countries,images,w,h\)/);
 assert.doesNotMatch(render,/const mask=new Path2D\(\);for\(const c of visible\)/);
 assert.match(app,/previewCache\.paint\(/);
-assert.match(app,/drawBase:surface=>renderScene\(surface,doc,countries,images,w,h,\{preview:false,soloId\}\)/);
+assert.match(app,/drawBase:surface=>renderScene\(surface,doc,countries,images,w,h,\{preview:false,fastTextures:true,soloId\}\)/);
 assert.match(app,/drawOverlay:surface=>drawPreviewSelection\(/);
 assert.match(app,/if\(dragPreview\)\{/);
 assert.match(app,/previewBackingScale\(cssW,cssH,devicePixelRatio\|\|1\)/);
