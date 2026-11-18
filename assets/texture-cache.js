@@ -26,9 +26,13 @@ export function createFilteredTextureCache({
    return entry.canvas;
   }
   stats.misses++;
-  const fraction=Math.min(1,Math.sqrt(maxPixels/(sourceWidth*sourceHeight)));
-  const width=Math.max(1,Math.round(sourceWidth*fraction));
-  const height=Math.max(1,Math.round(sourceHeight*fraction));
+  // Floor both dimensions: rounding up can put a nominal 4 MP image
+  // above the limit, causing three atlas layers to evict each other from
+  // a 12 MP LRU on every redraw. Never exceed the entire cache budget.
+  const pixelLimit=Math.max(1,Math.floor(Math.min(maxPixels,budgetPixels)));
+  const fraction=Math.min(1,Math.sqrt(pixelLimit/(sourceWidth*sourceHeight)));
+  const width=Math.max(1,Math.floor(sourceWidth*fraction));
+  const height=Math.max(1,Math.floor(sourceHeight*fraction));
   let canvas=null;
   try{
    canvas=createCanvas();canvas.width=width;canvas.height=height;
