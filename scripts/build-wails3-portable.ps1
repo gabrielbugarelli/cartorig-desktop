@@ -99,6 +99,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Geographic texture material regression failed' }
     & node tests/test_ocean_material_isolation.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Separate ocean material regression failed' }
+    & node tests/test_atlas_clean_ocean.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Atlas flat-ocean default regression failed' }
     & node --check assets/creative-renderer.js
     if ($LASTEXITCODE -ne 0) { throw 'Creative renderer JavaScript syntax invalid' }
     & node --check assets/scene-renderer.js
