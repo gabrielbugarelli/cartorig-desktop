@@ -23,6 +23,17 @@ jobs:
         with:
           go-version: '1.26.x'
           cache: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate preview and texture regressions
+        shell: pwsh
+        run: |
+          node tests/test_texture_cache.mjs
+          node tests/test_texture_render_path.mjs
+          node tests/test_preview_cache.mjs
+          node tests/test_preview_lifecycle.mjs
+          node tests/test_preview_composition_integration.mjs
       - name: Build Windows portable
         shell: pwsh
         run: ./scripts/build-wails3-portable.ps1
