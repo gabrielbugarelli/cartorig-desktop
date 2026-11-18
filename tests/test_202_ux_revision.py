@@ -42,14 +42,14 @@ with sync_playwright() as p:
  assert page.locator('#uxMapBoundaries').count()==1
  assert page.locator('#uxMapBoundaries').is_visible()
  summaries=page.locator('#style14CustomizeView .style14-group > summary').all_inner_texts()
- assert summaries[:5]==['STATE BOUNDARIES & GEOGRAPHY','BORDERS & GRID','LAND & OCEAN','ATMOSPHERE','DEFAULT TYPOGRAPHY'],summaries
+ assert summaries[:4]==['BORDERS & GRID','LAND & OCEAN','ATMOSPHERE','DEFAULT TYPOGRAPHY'],summaries
  assert summaries.index('OBJECT TYPE DEFAULTS & EFFECTS')<summaries.index('SURFACES & MATERIALS')
  assert page.locator('.ux-settings-divider').first.inner_text()=='GLOBAL COMPOSITION'
- page.locator('#uxMapBoundaries > summary').click()
+ assert page.locator('#uxMapDisplayTitle').inner_text()=='MAP DISPLAY'
+ assert page.locator('#sceneTexturesEnabled').is_visible()
  assert page.locator('#showBrazilStates').is_visible()
  page.locator('#showBrazilStates').check()
  assert page.evaluate('CartoRig.scene.theme.overrides.show_state_boundaries') is True
- page.locator('#uxMapBoundaries > summary').click()
  page.locator('.style14-group > summary',has_text='BORDERS & GRID').click()
  inp=page.locator('[data-theme-field="border_width"]');assert inp.is_visible()
  inp.fill('2.5');inp.press('Tab')
