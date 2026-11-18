@@ -37,3 +37,9 @@ No changes to renderer, the Wails native save path, data schema, exports, autosa
 ## Free GitHub Actions policy
 
 The Stage 1 workflow is manually triggered only (`workflow_dispatch`), uses the public repository with standard `windows-2022` runner, skips if private, cancels overlapping runs, and keeps logs and ZIP artifacts for three days. Run manually from Actions > CartoRig Wails 3 Portable > Run workflow > `feature/ui-ux-evolution`. No push-triggered compilation is enabled on this branch.
+
+## Feedback refinements (18 Nov 2026)
+
+- Removed the two initial onboarding cards, *Find a place to add to your map* in Geography and *Build your first map layer* in Scene. Geography still has normal search/filter controls and provides actionable feedback only for an actual failed search; Scene still provides an action when a typed layer query matches no entries.
+- Combined **Show textures** and **State boundaries** under a compact, always-expanded **MAP DISPLAY** group inside Looks > Personalize. The underlying `SetTextureVisibility` project option and `show_state_boundaries` theme override remain independent and unchanged. Disabled Rivers/Lakes/Coastlines inputs remain available internally for compatibility but are not displayed to users as unsupported toggles.
+- Added `tests/test_ui_map_display.mjs` to the manual-only Windows build and refreshed browser UI assertions. No rendering engine, project schema, native save, or export changes.
