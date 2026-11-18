@@ -52,7 +52,9 @@ function drawPolygon(ctx,doc,geometry,w,h,fill=true,stroke=false){
 function raster(ctx,doc,img,w,h){
  if(!img||img.complete===false||!(img.naturalWidth||img.width))return false;
  const k=scaleFor(doc,w,h),theta=(doc.camera.bearing||0)*rad;
- const shifts=visibleRasterShifts({width:w,height:h,k,center_lon:doc.camera.center_lon,center_lat:doc.camera.center_lat,bearing:doc.camera.bearing||0});
+ // Never change the exact full-resolution export raster; cull copies only
+ // for the screen preview where subpixel seam differences are immaterial.
+ const shifts=fastTexturePreview?visibleRasterShifts({width:w,height:h,k,center_lon:doc.camera.center_lon,center_lat:doc.camera.center_lat,bearing:doc.camera.bearing||0}):[-1,0,1];
  textureRenderStats.rasterCopies+=shifts.length;textureRenderStats.culledCopies+=3-shifts.length;
  ctx.save();ctx.translate(w/2,h/2);ctx.rotate(theta);
  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality=fastTexturePreview?'medium':'high';

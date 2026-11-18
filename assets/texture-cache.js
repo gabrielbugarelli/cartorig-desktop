@@ -84,7 +84,8 @@ export function visibleRasterShifts({width,height,k,center_lon=0,center_lat=0,be
    loX=Math.min(loX,u);hiX=Math.max(hiX,u);
    loY=Math.min(loY,v);hiY=Math.max(hiY,v);
   }
-  if(hiX>xLeft&&loX<xRight&&hiY>yTop&&loY<yBottom)visible.push(shift);
+  // Ignore subpixel edge-only copies: they cannot paint a full preview pixel.
+  if(hiX>xLeft+.5&&loX<xRight-.5&&hiY>yTop+.5&&loY<yBottom-.5)visible.push(shift);
  }
  return visible;
 }

@@ -4,6 +4,7 @@ const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const renderer=read('assets/scene-renderer.js'),app=read('assets/app.js'),logging=read('desktop_telemetry.go'),bridge=read('tests/module_loader.py');
 assert.match(renderer,/import \{createFilteredTextureCache,visibleRasterShifts\} from '\.\/texture-cache\.js'/);
 assert.match(renderer,/function rasterFiltered\(/);
+assert.match(renderer,/const shifts=fastTexturePreview\?visibleRasterShifts\(/);
 assert.match(renderer,/fastTexturePreview=fastTextures===true/);
 assert.match(renderer,/fastTexturePreview=previousTextureMode/);
 assert.match(renderer,/rasterFiltered\(ctx,doc,texture,w,h,filter\)/);
