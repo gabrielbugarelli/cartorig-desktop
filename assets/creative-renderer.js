@@ -68,7 +68,7 @@ function drawLabel(ctx,doc,o,w,h,project){let f=h/1080,s=o.style||{},ty=o.typogr
 function drawShape(ctx,doc,o,w,h,project){let f=h/1080,s=o.style||{},kind=o.shape_kind,pts=shapeScreenPoints(doc,o,w,h,project);if(pts.length<2)return;
  ctx.save();ctx.strokeStyle=s.stroke_color||'#eab766';ctx.fillStyle=s.fill_color||'#eab76644';strokeStyle(ctx,s,f);let a=pts[0],b=pts.at(-1);if(o.linked_object_id&&o.coordinate_space==='geo'){const marker=doc.objects[o.linked_object_id];if(marker?.type==='Marker'&&marker.anchor)a=worldXY(doc,marker.anchor,w,h,project);}
  if(kind==='Callout'){
-  let caption=o.text||'Callout',px=o.callout_box?.x*w??b[0],py=o.callout_box?.y*h??b[1];
+  let caption=o.text||'Callout',px=o.callout_box?o.callout_box.x*w:b[0],py=o.callout_box?o.callout_box.y*h:b[1];
   // Newly drawn geographic Callouts use point #2 (b), which projects with
   // the camera. Explicit legacy screen-pinned boxes keep their old behavior.
   ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(px,py);ctx.stroke();ctx.setLineDash([]);
