@@ -6,7 +6,7 @@ import re
 def browser_bundle(assets, include_app=True):
     exports={
         'reference-looks.js':'REFERENCE_LOOKS',
-        'look-materials.js':'MATERIAL_IDS RELIEF_PROFILES LOOK_MATERIAL_RECIPES LOOK_FAMILIES',
+        'look-materials.js':'MATERIAL_IDS LAND_MATERIAL_IDS OCEAN_MATERIAL_IDS isMaterialForSurface RELIEF_PROFILES LOOK_MATERIAL_RECIPES LOOK_FAMILIES',
         'creative-engine.js':'MARKER_SYMBOLS SHAPES ROUTE_TYPES clamp01 normLon pointValid distinct resolveLink routePoints continuousPoints inverseGeodesic directGeodesic geodesicSamples curvedSamples routeSamples simplifyFreehand shapePoints destinationPoint geoDistance validateCreative sanitizeSVG',
         'scene-core.js':'clone uuid clamp COLORS madeObject newDocument texturesEnabled DEFAULT_MAP_LABELS MAP_LABEL_KINDS MAP_LABEL_SIZES validateMapLabels migrateLegacy treeIds descendants ancestors isLocked isVisible normalizeSelection validateDocument SceneStore',
         'style-resolver.js':'BLEND_MODES STYLE_NUMBERS THEME_NUMBERS THEME_COLORS THEME_TOGGLES THEME_CHOICES THEME_FIELDS themeValue isColor styleDefaults EFFECT_DEFAULTS validateStyleField validateThemeField paletteFor resolveStyle inheritedValue parseStylePreset makeStylePreset styleToFile',
