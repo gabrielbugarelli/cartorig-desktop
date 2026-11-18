@@ -1,18 +1,11 @@
 name: CartoRig Wails 3 Portable (Windows x64)
+# UI/UX development: manually start builds only when a portable is needed.
+# Public repository + standard windows-2022 runner: no metered runner compute.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - feature/wails3-desktop-portable
-    paths:
-      - 'main_wails.go'
-      - 'desktop_http.go'
-      - 'production.go'
-      - 'production_recovery_delete_test.go'
-      - 'assets/**'
-      - 'go.desktop.mod'
-      - 'scripts/build-wails3-portable.ps1'
-      - '.github/workflows/cartorig-wails3-portable.yml'
+concurrency:
+  group: cartorig-ui-manual-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   portable:
     runs-on: windows-2022
@@ -103,6 +96,7 @@ jobs:
           name: CartoRig-2.1.0-Wails3-Windows-Smoke-Log
           path: ~/AppData/Local/CartoRig/logs/desktop-startup.log
           if-no-files-found: ignore
+          retention-days: 3
       - name: Upload portable EXE and SHA256
         uses: actions/upload-artifact@v4
         with:
@@ -111,4 +105,4 @@ jobs:
             dist/CartoRig-2.1.0-Wails3-Portable-Windows-x64.exe
             dist/CartoRig-Wails3-SHA256.txt
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 3
