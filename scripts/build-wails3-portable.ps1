@@ -93,8 +93,12 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Compact map display regression failed' }
     & node tests/test_callout_geo_anchor.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Geographic Callout regression failed' }
+    & node tests/test_callout_text_contrast.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Callout text contrast regression failed' }
     & node tests/test_material_geo_anchor.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Geographic texture material regression failed' }
+    & node tests/test_ocean_material_isolation.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Separate ocean material regression failed' }
     & node --check assets/creative-renderer.js
     if ($LASTEXITCODE -ne 0) { throw 'Creative renderer JavaScript syntax invalid' }
     & node --check assets/scene-renderer.js
