@@ -76,6 +76,10 @@ export function resolveStyle(doc,obj){
  if(obj.type==='Marker'){base.fill_color=palette.accent||'#e5b467';base.stroke_color='#ffffff';}
  if(obj.type==='Route'||obj.type==='Shape')base.stroke_color=palette.accent||'#e5b467';
  if(obj.type==='Label'||obj.type==='Shape')base.text_color=palette.text||'#ffffff';
+ // Callouts draw their text on a dark annotation box, not on the map.
+ // Keep the inherited default readable on light (Atlas) and dark themes.
+ // Explicit object/type/group text colors still take precedence below.
+ if(obj.type==='Shape'&&obj.shape_kind==='Callout')base.text_color='#ffffff';
  const custom=doc?.style_library?.find(x=>x.id===doc?.theme?.id);
  Object.assign(base,custom?.defaults?.[obj.type]||{});
  const cat=doc?.theme?.type_defaults?.[obj.type];if(cat)Object.assign(base,cat);
