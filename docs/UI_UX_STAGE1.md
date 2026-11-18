@@ -58,3 +58,11 @@ The Stage 1 workflow is manually triggered only (`workflow_dispatch`), uses the 
 - **Materials:** `surface_material` (paper/stock) and `cartographic_finish` (print/ink) are now clipped to the actual land geometry. `land_material` stays land-only and `ocean_material` stays ocean-only. Underlying raster ocean modes, land masks, the geographic CanvasPattern cache, labels and country overlays are unchanged.
 - Regressions: `tests/test_callout_text_contrast.mjs` checks Atlas text defaults, changes to Brasil, explicit red override, and Inspector synchronization; `tests/test_ocean_material_isolation.mjs` checks mask routing. The real pixel-based scene-looks test `tests/test_147_material_pixels.py` is updated to require paper and finish to leave ocean pixels unaffected.
 - Manual acceptance: Reopen Documentary Terrain, select the Callout without an explicit text color, verify its text is white on navy; edit the caption, verify readability, and then intentionally override the color. With textures enabled, confirm ocean grain is distinct from terrestrial paper, including pan, zoom, rotation and PNG/ZIP output.
+
+## Atlas ocean correction — follow-up after visual review (18 Nov 2026)
+
+The previous fix only masked `surface_material` and `cartographic_finish` to land. The reported sea grain remained because the Atlas recipe itself retained `ocean_material: marine_noise` at 0.22 intensity. This was verified against the user's `Documentary_Terrain.cartorig` file (theme Atlas, textures enabled, no material override).
+
+The Atlas default now uses `ocean_material: none` with strength 0; paper/fibrous/ink surfaces still appear on land with geographic camera transforms, while the Atlas sea is left as its flat map color. A user can still explicitly opt into marine patterns via ocean-material customization. Nautical presets remain unchanged.
+
+Added `tests/test_atlas_clean_ocean.mjs` for Atlas defaults, project persistence, opt-in ocean waves and nautical presets, and strengthened `tests/test_147_material_pixels.py` to assert Atlas land pixels change but ocean pixels do not when textures are enabled. This is a minimal targeted default fix, not a rewrite of the texture system. The existing static Look thumbnail may predate this refined material default and is not the source of final rendering.
