@@ -175,11 +175,14 @@ function paintSceneMaterials(ctx,doc,countries,images,w,h){
  if(!texturesEnabled(doc))return;
  const started=textureNow();
  const masks=materialMasks(doc,countries,images,w,h);
- // Support is a texture of the editorial medium, NOT geographical height.
- paintMaterial(ctx,images,doc,'surface_material','surface_strength','all',w,h,masks);
+ // Paper/print surfaces are terrestrial materials, not water. Mask them
+ // with the actual coastlines to prevent the same paper grain from covering
+ // the ocean. Water receives ONLY its own ocean_material pattern. Preserve
+ // geographic transforms, memoized paths and the original atlas recipes.
+ paintMaterial(ctx,images,doc,'surface_material','surface_strength','land',w,h,masks);
  paintMaterial(ctx,images,doc,'ocean_material','ocean_material_strength','ocean',w,h,masks);
  paintMaterial(ctx,images,doc,'land_material','land_material_strength','land',w,h,masks);
- paintMaterial(ctx,images,doc,'cartographic_finish','finish_strength','all',w,h,masks);
+ paintMaterial(ctx,images,doc,'cartographic_finish','finish_strength','land',w,h,masks);
  textureRenderStats.lastMaterialsMs=textureNow()-started;
 }
 function paintReliefProfile(ctx,doc,countries,images,w,h){
