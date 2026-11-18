@@ -311,7 +311,6 @@ export function setupStyleStudio({getDoc,getSelection=()=>[],exec,toast,download
     exec({type:'DeleteUserStyle',id:s.id});
    };actions.append(del);row.append(actions);library.append(row);}
   libraryHost.replaceChildren(library);
-  const global=el('button','style14-danger','Reset all object overrides');global.onclick=()=>{if(confirm('Reset styles for ALL unlocked objects? This change is undoable.'))exec({type:'ResetAllObjectOverrides',confirm:true});};const resetOptions=el('details','style14-group ux-reset-options');resetOptions.append(el('summary','','Reset options'),global);controlsArea.append(resetOptions);
   if(focusedLook)presetBox.querySelector(`[data-style="${focusedLook}"]`)?.focus({preventScroll:true});
   if(sidebar&&scrollPosition!==undefined)sidebar.scrollTop=scrollPosition;
  }

@@ -344,7 +344,81 @@ func autosaveHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	respondJSON(w, 200, map[string]any{"ok": true, "id": s.ID, "revision": s.Revision, "sha256": fileSHA(data)})
 }
+// Delete only selected autosave snapshots. Never touch Projects/ or Templates/.
+// Explicit IDs protect snapshots created after the recovery list was opened.
+func recoveryDeleteHandler(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, "DELETE") {
+		return
+	}
+	var request struct {
+		IDs []string `json:"ids"`
+	}
+	decoder := json.NewDecoder(io.LimitReader(r.Body, 1<<20))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&request); err != nil || len(request.IDs) == 0 || len(request.IDs) > 10000 {
+		backendError(w, 400, "expected 1 to 10000 recovery ids")
+		return
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		backendError(w, 400, "invalid recovery deletion request")
+		return
+	}
+	unique := make(map[string]struct{}, len(request.IDs))
+	for _, id := range request.IDs {
+		if !productionId.MatchString(id) {
+			backendError(w, 400, "invalid recovery id")
+			return
+		}
+		unique[id] = struct{}{}
+	}
+	root, err := productionPath("Autosaves")
+	if err != nil {
+		backendError(w, 500, err.Error())
+		return
+	}
+	// Validate all targets first so an invalid or linked directory cannot
+	// result in partially deleting an otherwise valid batch.
+	for id := range unique {
+		dir := filepath.Join(root, id)
+		info, e := os.Lstat(dir)
+		if os.IsNotExist(e) {
+			continue
+		}
+		if e != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			backendError(w, 400, "invalid recovery directory")
+			return
+		}
+	}
+	deleted, missing := 0, 0
+	for id := range unique {
+		dir := filepath.Join(root, id)
+		found := false
+		for _, name := range []string{"latest.json", "latest.json.bak"} {
+			file := filepath.Join(dir, name)
+			if err := os.Remove(file); err == nil {
+				found = true
+			} else if !os.IsNotExist(err) {
+				backendError(w, 500, "could not delete recovery")
+				return
+			}
+		}
+		if found {
+			deleted++
+			// Only remove the directory when empty; unrelated files remain safe.
+			_ = os.Remove(dir)
+		} else {
+			missing++
+		}
+	}
+	respondJSON(w, 200, map[string]any{"deleted": deleted, "missing": missing})
+}
+
 func recoveryHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodDelete {
+		recoveryDeleteHandler(w, r)
+		return
+	}
 	if !requireMethod(w, r, "GET") {
 		return
 	}
@@ -373,7 +447,7 @@ func recoveryHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		s, er := validateProjectJSON(data)
-		if er != nil {
+		if er != nil || s.ID != d.Name() {
 			continue
 		}
 		saved, _ := readProject(s.ID)

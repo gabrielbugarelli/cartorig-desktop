@@ -100,14 +100,26 @@ export function validateDocument(doc){
  return true;
 }
 export class SceneStore{
- constructor(doc=newDocument(),onChange=()=>{}){validateDocument(doc);this.doc=clone(doc);this.undoStack=[];this.redoStack=[];this.onChange=onChange;this.maxHistory=120;this.savedSnapshot=JSON.stringify(this.doc);this.selection=[];}
- get dirty(){return JSON.stringify(this.doc)!==this.savedSnapshot;}
- markSaved(){this.savedSnapshot=JSON.stringify(this.doc);this.onChange('saved');}
+ constructor(doc=newDocument(),onChange=()=>{}){validateDocument(doc);this.doc=clone(doc);this.undoStack=[];this.redoStack=[];this.onChange=onChange;this.maxHistory=120;this.savedSnapshot=JSON.stringify(this.doc);this.currentSnapshot=this.savedSnapshot;this.selection=[];}
+ get dirty(){return this.currentSnapshot!==this.savedSnapshot;}
+ markSaved(){this.savedSnapshot=this.currentSnapshot;this.onChange('saved');}
  setSelection(ids){this.selection=[...new Set(ids)].filter(id=>this.doc.objects[id]);this.onChange('selection');}
- replace(doc){validateDocument(doc);this.doc=clone(doc);this.undoStack=[];this.redoStack=[];this.selection=[];this.savedSnapshot=JSON.stringify(this.doc);this.onChange('replace');}
+ replace(doc){validateDocument(doc);this.doc=clone(doc);this.undoStack=[];this.redoStack=[];this.selection=[];this.savedSnapshot=JSON.stringify(this.doc);this.currentSnapshot=this.savedSnapshot;this.onChange('replace');}
  execute(cmd){const before=clone(this.doc),selected=[...this.selection];try{
   const d=this.doc,objs=d.objects;let obj=objs[cmd.id];let mutable=()=>{if(!obj)throw Error('Object not found');if(isLocked(d,obj.id))throw Error('Object is locked');};
   switch(cmd.type){
+   case 'ResetScene':{
+    if(cmd.confirm!==true)throw Error('Explicit confirmation required');
+    // Reset map to default state but preserve this project's identity and Undo history.
+    const clean=newDocument();
+    clean.project_id=d.project_id;
+    clean.name=d.name;
+    clean.created_at=d.created_at;
+    for(const key of Object.keys(d))delete d[key];
+    Object.assign(d,clean);
+    this.selection=[];
+    break;
+   }
    case 'CreateObject':{let o=clone(cmd.object);if(!o.id)o.id=uuid();if(objs[o.id])throw Error('Duplicate object ID');if(!['Region','Route','Label','Marker','Shape','Group'].includes(o.type))throw Error('Unsupported object type');let parent=cmd.parent_id??null;let list=listFor(d,parent);if(parent!==null&&isLocked(d,parent))throw Error('Parent is locked');o.parent_id=parent;if(o.type==='Group'&&!Array.isArray(o.children))o.children=[];objs[o.id]=o;list.splice(cmd.index==null?list.length:clamp(cmd.index,0,list.length),0,o.id);this.selection=[o.id];break;}
    case 'SetProperty':{mutable();let path=String(cmd.path||''),value=clone(cmd.value);
      if(path==='name')obj.name=String(value).slice(0,140);
@@ -209,9 +221,9 @@ export class SceneStore{
    case 'SetThemeProperty':{validateThemeField(cmd.key,cmd.value);d.theme.overrides??={};if(cmd.value===null)delete d.theme.overrides[cmd.key];else d.theme.overrides[cmd.key]=clone(cmd.value);break;}
    default:throw Error('Unknown command');
   }
-  validateDocument(d);const old=JSON.stringify(before),now=JSON.stringify(d);if(old===now)return false;
-  d.revision=(before.revision||0)+1;d.updated_at=new Date().toISOString();this.undoStack.push({doc:before,selection:selected});if(this.undoStack.length>this.maxHistory)this.undoStack.shift();this.redoStack=[];this.onChange('change');return true;
- }catch(e){this.doc=before;this.selection=selected;throw e;}}
- undo(){if(!this.undoStack.length)return false;this.redoStack.push({doc:clone(this.doc),selection:[...this.selection]});let prev=this.undoStack.pop();this.doc=prev.doc;this.selection=prev.selection;this.onChange('change');return true;}
- redo(){if(!this.redoStack.length)return false;this.undoStack.push({doc:clone(this.doc),selection:[...this.selection]});let next=this.redoStack.pop();this.doc=next.doc;this.selection=next.selection;this.onChange('change');return true;}
+  validateDocument(d);const old=this.currentSnapshot,now=JSON.stringify(d);if(old===now)return false;
+  d.revision=(before.revision||0)+1;d.updated_at=new Date().toISOString();this.currentSnapshot=JSON.stringify(d);this.undoStack.push({doc:before,selection:selected});if(this.undoStack.length>this.maxHistory)this.undoStack.shift();this.redoStack=[];this.onChange('change');return true;
+ }catch(e){this.doc=before;this.selection=selected;this.currentSnapshot=JSON.stringify(before);throw e;}}
+ undo(){if(!this.undoStack.length)return false;this.redoStack.push({doc:clone(this.doc),selection:[...this.selection]});let prev=this.undoStack.pop();this.doc=prev.doc;this.selection=prev.selection;this.currentSnapshot=JSON.stringify(this.doc);this.onChange('change');return true;}
+ redo(){if(!this.redoStack.length)return false;this.undoStack.push({doc:clone(this.doc),selection:[...this.selection]});let next=this.redoStack.pop();this.doc=next.doc;this.selection=next.selection;this.currentSnapshot=JSON.stringify(this.doc);this.onChange('change');return true;}
 }

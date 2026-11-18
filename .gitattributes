@@ -1,0 +1,8 @@
+# Preserve byte-for-byte Natural Earth releases. Their SHA256 is pinned
+# in assets/geodata/offline_integrity.json; CRLF conversion breaks init().
+assets/geodata/admin1_world.geojson -text
+assets/geodata/cities_world_full.geojson -text
+assets/geodata/offline_integrity.json -text
+assets/geodata/SOURCE_LOCK.json -text
+# Keep look fingerprints stable across Windows and Unix checkouts.
+assets/*.js text eol=lf

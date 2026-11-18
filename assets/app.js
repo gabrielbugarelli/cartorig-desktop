@@ -2,9 +2,11 @@ import {MATERIAL_IDS} from './look-materials.js';
 import {setupNavigation} from './navigation-ui.js';
 /* CartoRig M0/M1 — three-pane editing UI. No animation engine. MIT. */
 import {SceneStore,newDocument,migrateLegacy,validateDocument,madeObject,uuid,treeIds,isVisible,isLocked,normalizeSelection,clamp,clone} from './scene-core.js';
-import {renderScene,renderMapLabelLayer,project,unproject,scaleFor,hitTest,hitTestCandidates,boundsOf,pointInside} from './scene-renderer.js';
+import {renderScene,renderMapLabelLayer,drawPreviewSelection,project,unproject,scaleFor,hitTest,hitTestCandidates,boundsOf,pointInside,polygonCacheStats,previewTextureStats,textureRenderStats,stateBoundaryStats} from './scene-renderer.js';
+import {createPreviewCache,previewBackingScale} from './preview-cache.js';
+import {createPreviewScheduler} from './preview-scheduler.js';
 import {setupProductionStudio} from './production-studio.js';
-import {GeoCatalog,geoNormalize,geoDisplayName,geoDisplayParent,featureBounds,featureFocusBounds} from './geo-catalog.js';
+import {GeoCatalog,geoNormalize,geoDisplayName,geoDisplayParent,featureBounds,featureFocusBounds,normalizeCountryIds,countryForRegion} from './geo-catalog.js';
 import {SHAPES,ROUTE_TYPES,MARKER_SYMBOLS,sanitizeSVG,pointValid,resolveLink} from './creative-engine.js';
 import {drawCreative,creativeHandles,settleCreativeAssets} from './creative-renderer.js';
 import {creativeInspector} from './creative-inspector.js';
@@ -21,14 +23,15 @@ let creativeDraft=null,creativeCursor=null,editHandles=false,editOffset=false,in
 let lastSavedFileName=null,sessionToken="",geo=null,worldAdminState="checking",worldCitiesState="checking",worldAdminCount=0,appReady=false,worldAdminHealth=null,worldCitiesHealth=null,verifiedGeoHealth=null;
 const GEO_RESULTS_PAGE=20, GEO_SEARCH_DELAY_MS=180;
 let geoSearchOffset=0,geoSearchTimer=null;
-window.CartoRig={get ready(){return appReady},get scene(){return clone(store.doc)},get selection(){return [...store.selection]}, get history(){return {undo:store.undoStack.length,redo:store.redoStack.length}},execute:cmd=>exec(cmd),get countryCount(){return countries.length},get geoCatalog(){return geo},get geoDatasets(){return geo?.dataStatus()||[]},get geoIntegrity(){return verifiedGeoHealth},get creativeDraft(){return clone(creativeDraft)},setTool:name=>setTool(name)};
+window.CartoRig={get ready(){return appReady},get scene(){return clone(store.doc)},get selection(){return [...store.selection]}, get history(){return {undo:store.undoStack.length,redo:store.redoStack.length}},execute:cmd=>exec(cmd),get countryCount(){return countries.length},get geoCatalog(){return geo},get geoDatasets(){return geo?.dataStatus()||[]},get geoIntegrity(){return verifiedGeoHealth},get creativeDraft(){return clone(creativeDraft)},setTool:name=>setTool(name),
+ get performance(){return {preview:previewScheduler.getStats(),composition:previewCache.getStats(),textures:previewTextureStats(),textureRender:{...textureRenderStats},polygonCache:{hits:polygonCacheStats.hits,misses:polygonCacheStats.misses},heap:performance.memory?{usedJSHeapSize:performance.memory.usedJSHeapSize,totalJSHeapSize:performance.memory.totalJSHeapSize}:null}}};
 function showToast(s,error=false){let el=$('toast');el.textContent=s;el.hidden=false;el.classList.toggle('error',error);clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.hidden=true,4000);}
 function status(s){$('status').textContent=s;}
 function scheduleCache(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>{try{localStorage.setItem(currentKey,JSON.stringify(store.doc));}catch(e){status('Local recovery cache unavailable');}},350);}
 // Native Scene Looks use immutable, version-locked PNGs embedded in the binary.
 // All gallery thumbnail presentation is owned by style-studio.js; app.js never
 // draws, substitutes or re-encodes Scene Looks during startup or theme changes.
-function stateChanged(type){if(type==='change'){scheduleCache();if(appReady)production.scheduleAutosave();}syncUI();}
+function stateChanged(type){if(type==='change'){scheduleCache();if(appReady)production.scheduleAutosave();}syncUI(type);}
 store.onChange=stateChanged;
 const styleStudio=setupStyleStudio({getDoc:()=>store.doc,getSelection:()=>store.selection,exec,toast:showToast,downloadable,getToken:()=>sessionToken});
 const production=setupProductionStudio({getDoc:()=>store.doc,getSelection:()=>store.selection,execute:cmd=>exec(cmd),getCountries:()=>countries,getImages:()=>images,getToken:()=>sessionToken,replaceDoc:d=>{store.replace(d);setTab('layers')},render:renderScene,settle:settleCreativeAssets,download:downloadable,notify:showToast,status,markSaved:()=>store.markSaved()});
@@ -162,7 +165,7 @@ async function loadWorldAdmin1(){
  let response=await fetch('/api/admin1/data');if(!response.ok)throw Error('World boundaries not available (HTTP '+response.status+')');
  let json=await response.json();let result=geo.install('ne_10m_admin1_world.geojson',json,'State');
  if(result.accepted<3000)throw Error('World data incomplete: '+result.accepted+' polygons');
- worldAdminState='ready';images._geo=geo;renderCountryList();geoStatus();drawPreview();
+ worldAdminState='ready';images._geo=geo;renderCountryList();geoStatus();invalidatePreviewResources();
  status('World subdivisions ready · '+result.accepted+' polygons');return result;
 }
 async function ensureWorldAdmin1(force=false){
@@ -227,8 +230,8 @@ async function importGeoFile(file){
   // Persist before reporting success, so the user knows the dataset survives a restart.
   let persisted;
   try{persisted=await persistGeoPack({filename:file.name,kind,data});}
-  catch(err){geo.remove(result.datasetId);images._geo=geo;renderCountryList();geoStatus();drawPreview();throw err;}
-  images._geo=geo;renderCountryList();geoStatus();drawPreview();
+  catch(err){geo.remove(result.datasetId);images._geo=geo;renderCountryList();geoStatus();invalidatePreviewResources();throw err;}
+  images._geo=geo;renderCountryList();geoStatus();invalidatePreviewResources();
   showToast(`${result.accepted} ${result.kind} geometries installed offline`);
   status('Dataset stored permanently: '+persisted.id.slice(0,12));
  }catch(e){showToast('GeoJSON import failed: '+e.message,true);status('GeoJSON import rejected');}
@@ -278,7 +281,7 @@ function renderInspector(){let root=$('inspector');root.replaceChildren();let id
 
  function prop(group,label,key,def,type='color',options={}){createField(group,label,target.style?.[key]??def,v=>exec({type:'SetProperty',id:target.id,path:'style.'+key,value:v}),{type,disabled:locked,...options});}
  if(target.type==='Region'){let loc=inspectorGroup(root,'GEOGRAPHY');const geoMeta=document.createElement('details');geoMeta.className='ux-advanced ux-inspector-metadata';const geoMetaSummary=document.createElement('summary');geoMetaSummary.textContent='Source details';geoMeta.append(geoMetaSummary);let t=document.createElement('small');t.textContent=target.region_kind+' · '+(target.source?.dataset_id||'Unknown dataset')+' · '+(target.source?.feature_id||'unknown')+(target.embedded_geometry?' · Geometry saved in project':'');geoMeta.append(t);loc.append(geoMeta);
- const regionGeometry=target.embedded_geometry||geo?.lookup?.(target.source?.dataset_id,target.source?.feature_id)?.geometry||byIso.get(target.source?.feature_id)?.geometry||null;
+ const regionGeometry=target.embedded_geometry||(target.region_kind==='Country'?countryForRegion(target,countries,geo,store.doc.camera.zoom)?.geometry:geo?.lookup?.(target.source?.dataset_id,target.source?.feature_id)?.geometry)||null;
  if(regionGeometry){const bounds=featureFocusBounds(regionGeometry);let text=document.createElement('small');text.className='region-bounds';text.textContent=`WGS84 bounds: ${bounds.minx.toFixed(4)}° to ${bounds.maxx.toFixed(4)}° lon · ${bounds.miny.toFixed(4)}° to ${bounds.maxy.toFixed(4)}° lat`;geoMeta.append(text);}
  else {const unresolved=document.createElement('small');unresolved.textContent='Geometry unresolved in installed data';loc.append(unresolved);}
  if(target.geo_source_info){let detail=document.createElement('small');let a=target.geo_source_info;detail.textContent=`Source: ${a.source_file||a.dataset_id||'Natural Earth'} · scale ${a.scale||'unknown'} · ID ${a.feature_id||'unknown'} · version ${a.source_version||'unknown'}`;geoMeta.append(detail);}}
@@ -308,7 +311,7 @@ function renderInspector(){let root=$('inspector');root.replaceChildren();let id
  if(['Route','Marker','Label','Shape'].includes(target.type))creativeInspector(root,target,doc,{
   exec,field:createField,check:createCheck,group:inspectorGroup,locked,toast:showToast,
   editText:()=>openInlineText(target),importImage:importCreativeIcon,findCities:q=>geo?.search(q,'City','',8)||[],
-  representative:o=>{let g=o.embedded_geometry||geo?.lookup?.(o.source?.dataset_id,o.source?.feature_id)?.geometry||byIso.get(o.source?.feature_id)?.geometry;if(!g)return null;let b=featureFocusBounds(g),mx=(b.minx+b.maxx)/2,my=(b.miny+b.maxy)/2;for(let i=0;i<45;i++)for(let j=0;j<45;j++){let lon=b.minx+(b.maxx-b.minx)*(i===0?.5:i/45),lat=b.miny+(b.maxy-b.miny)*(j===0?.5:j/45);lon=((lon+180)%360+360)%360-180;if(pointInside(lon,lat,{geometry:g}))return {lon,lat};}return null;},
+  representative:o=>{let g=o.embedded_geometry||(o.region_kind==='Country'?countryForRegion(o,countries,geo,store.doc.camera.zoom)?.geometry:geo?.lookup?.(o.source?.dataset_id,o.source?.feature_id)?.geometry);if(!g)return null;let b=featureFocusBounds(g),mx=(b.minx+b.maxx)/2,my=(b.miny+b.maxy)/2;for(let i=0;i<45;i++)for(let j=0;j<45;j++){let lon=b.minx+(b.maxx-b.minx)*(i===0?.5:i/45),lat=b.miny+(b.maxy-b.miny)*(j===0?.5:j/45);lon=((lon+180)%360+360)%360-180;if(pointInside(lon,lat,{geometry:g}))return {lon,lat};}return null;},
   editPath:()=>{setTool('select');editHandles=true;editOffset=false;showToast('Drag a blue handle to edit. Esc exits editing.');},
   editOffset:()=>{setTool('select');editHandles=true;editOffset=true;showToast('Drag the marker handle to change its visual offset.');},
   convertShape:(o,space)=>{if(space===o.coordinate_space)return;let pts=o.points.map(pt=>space==='screen'?(()=>{let [x,y]=project(doc,pt.lon,pt.lat,canvas.width,canvas.height);return {x:clamp(x/canvas.width,0,1),y:clamp(y/canvas.height,0,1)};})():(()=>{let [lon,lat]=unproject(doc,pt.x*canvas.width,pt.y*canvas.height,canvas.width,canvas.height);return {lon,lat};})());exec({type:'SetProperties',id:o.id,values:{coordinate_space:space,points:pts}});},
@@ -325,13 +328,80 @@ function renderInspector(){let root=$('inspector');root.replaceChildren();let id
  }
  
 }
-function syncUI(){const d=store.doc;let inp=$('projectName');if(document.activeElement!==inp)inp.value=d.name;$('dirtyState').textContent=store.dirty?'Unsaved changes':'Saved';$('dirtyState').classList.toggle('dirty',store.dirty);$('undo').disabled=!store.undoStack.length;$('redo').disabled=!store.redoStack.length;$('zoomValue').textContent=Math.round(d.camera.zoom*100)+'%';$('selectionCount').textContent=store.selection.length>1?store.selection.length+' selected':'';$('resolution').value=d.canvas.width+'x'+d.canvas.height;$('transparent').checked=d.canvas.transparent;document.querySelectorAll('[data-style]').forEach(b=>b.classList.toggle('active',b.dataset.style===d.theme.id));$('duplicate').disabled=store.selection.length!==1;$('delete').disabled=!store.selection.length;$('ungroup').disabled=store.selection.length!==1||d.objects[store.selection[0]]?.type!=='Group';$('ungroup').hidden=$('ungroup').disabled;renderTree();renderInspector();styleStudio.sync();drawPreview();geoStatus();}
+function syncUI(reason='change'){const d=store.doc;let inp=$('projectName');if(document.activeElement!==inp)inp.value=d.name;$('dirtyState').textContent=store.dirty?'Unsaved changes':'Saved';$('dirtyState').classList.toggle('dirty',store.dirty);$('undo').disabled=!store.undoStack.length;$('redo').disabled=!store.redoStack.length;$('zoomValue').textContent=Math.round(d.camera.zoom*100)+'%';$('selectionCount').textContent=store.selection.length>1?store.selection.length+' selected':'';$('resolution').value=d.canvas.width+'x'+d.canvas.height;$('transparent').checked=d.canvas.transparent;document.querySelectorAll('[data-style]').forEach(b=>b.classList.toggle('active',b.dataset.style===d.theme.id));$('duplicate').disabled=store.selection.length!==1;$('delete').disabled=!store.selection.length;$('ungroup').disabled=store.selection.length!==1||d.objects[store.selection[0]]?.type!=='Group';$('ungroup').hidden=$('ungroup').disabled;renderTree();renderInspector();styleStudio.sync();if(reason!=='saved')drawPreview();geoStatus();}
 function fitCountry(iso){let c=byIso.get(iso);if(!c)return;fitBounds(boundsOf(c));}
 function fitBounds(bb){if(!Number.isFinite(bb.minx))return;let w=previewW||1280,h=previewH||720,k=Math.min(w/360,h/180),dx=Math.max(10,bb.maxx-bb.minx),dy=Math.max(7,bb.maxy-bb.miny),bearing=(store.doc.camera.bearing||0)*Math.PI/180,cs=Math.abs(Math.cos(bearing)),sn=Math.abs(Math.sin(bearing)),rotW=dx*cs+dy*sn,rotH=dx*sn+dy*cs;exec({type:'SetCameraPose',pose:{center_lon:((bb.minx+bb.maxx)/2+540)%360-180,center_lat:(bb.miny+bb.maxy)/2,zoom:clamp(Math.min(w*.77/rotW,h*.77/rotH)/k,.8,70)}});}
-function fitSelection(){let box={minx:Infinity,miny:Infinity,maxx:-Infinity,maxy:-Infinity};for(let id of store.selection){let o=store.doc.objects[id],c=o?.embedded_geometry?{geometry:o.embedded_geometry}:o?.region_kind==='Continent'?{geometry:geo?.continents?.[o.source?.feature_id]}:geo?.lookup(o?.source?.dataset_id,o?.source?.feature_id)||byIso.get(o?.source?.feature_id);if(c?.geometry){let b=boundsOf(c);box.minx=Math.min(box.minx,b.minx);box.miny=Math.min(box.miny,b.miny);box.maxx=Math.max(box.maxx,b.maxx);box.maxy=Math.max(box.maxy,b.maxy);}else for(let pt of [o?.anchor,o?.from,o?.to])if(pt&&Number.isFinite(pt.lon)&&Number.isFinite(pt.lat)){box.minx=Math.min(box.minx,pt.lon);box.maxx=Math.max(box.maxx,pt.lon);box.miny=Math.min(box.miny,pt.lat);box.maxy=Math.max(box.maxy,pt.lat);}}if(Number.isFinite(box.minx))fitBounds(box);else showToast('No geographical bounds for selection',true);}
-function updateCanvasSize(){let box=wrap.getBoundingClientRect(),ratio=store.doc.canvas.width/store.doc.canvas.height;let cssW=Math.max(100,Math.min(box.width-34,(box.height-34)*ratio)),cssH=cssW/ratio,pxratio=Math.min(devicePixelRatio||1,2);previewW=cssW;previewH=cssH;canvas.style.width=cssW+'px';canvas.style.height=cssH+'px';let w=Math.max(100,Math.round(cssW*pxratio)),h=Math.max(100,Math.round(cssH*pxratio));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}return {w,h};}
-function drawPreview(){if(!countries.length)return;let {w,h}=updateCanvasSize();let doc=store.doc;if(dragPreview){doc=clone(doc);if(dragPreview.camera)doc.camera={...doc.camera,...dragPreview.camera};if(dragPreview.anchor){let o=doc.objects[dragPreview.id];if(o)o.anchor=dragPreview.anchor;}if(dragPreview.object)doc.objects[dragPreview.id]=dragPreview.object;}
- renderScene(ctx,doc,countries,images,w,h,{preview:true,selection:store.selection,soloId});
+function fitSelection(){let box={minx:Infinity,miny:Infinity,maxx:-Infinity,maxy:-Infinity};for(let id of store.selection){let o=store.doc.objects[id],c=o?.embedded_geometry?{geometry:o.embedded_geometry}:o?.region_kind==='Continent'?{geometry:geo?.continents?.[o.source?.feature_id]}:o?.region_kind==='Country'?countryForRegion(o,countries,geo,store.doc.camera.zoom):geo?.lookup(o?.source?.dataset_id,o?.source?.feature_id);if(c?.geometry){let b=boundsOf(c);box.minx=Math.min(box.minx,b.minx);box.miny=Math.min(box.miny,b.miny);box.maxx=Math.max(box.maxx,b.maxx);box.maxy=Math.max(box.maxy,b.maxy);}else for(let pt of [o?.anchor,o?.from,o?.to])if(pt&&Number.isFinite(pt.lon)&&Number.isFinite(pt.lat)){box.minx=Math.min(box.minx,pt.lon);box.maxx=Math.max(box.maxx,pt.lon);box.miny=Math.min(box.miny,pt.lat);box.maxy=Math.max(box.maxy,pt.lat);}}if(Number.isFinite(box.minx))fitBounds(box);else showToast('No geographical bounds for selection',true);}
+// In the Wails build, visibility is delivered by the native tray lifecycle.
+// In a browser, document.visibilitychange supplies the equivalent signal.
+let nativeWindowVisible=true;
+let previewResourcesVersion=0;
+const previewCache=createPreviewCache();
+function invalidatePreviewResources(){previewResourcesVersion++;previewCache.invalidate();drawPreview();}
+const previewScheduler=createPreviewScheduler({
+ draw:renderPreviewNow,
+ measure:()=>{const box=wrap.getBoundingClientRect();return {width:box.width,height:box.height};},
+ requestFrame:callback=>requestAnimationFrame(callback),
+ cancelFrame:id=>cancelAnimationFrame(id),
+ now:()=>performance.now(),
+ initiallyVisible:!document.hidden
+});
+function drawPreview(){previewScheduler.invalidate();}
+function updatePreviewVisibility(){
+ previewScheduler.setVisible(nativeWindowVisible&&!document.hidden);
+}
+window.addEventListener('cartorig-desktop-visibility',event=>{
+ nativeWindowVisible=event.detail?.visible!==false;
+ updatePreviewVisibility();
+});
+document.addEventListener('visibilitychange',updatePreviewVisibility);
+
+// Diagnostics only: local numerical heartbeat to distinguish renderer stalls
+// from native window lifecycle hangs. Never send project contents or object names.
+let desktopHealthPending=false,desktopHealthTimer=null;
+function sendDesktopHealth(phase='periodic'){
+ if(!sessionToken||location.hostname!=='wails.localhost'||desktopHealthPending)return;
+ const metrics=previewScheduler.getStats(),composition=previewCache.getStats(),textures=previewTextureStats(),texturePass=textureRenderStats,states=stateBoundaryStats();const bounds=wrap.getBoundingClientRect();
+ const body={phase,renders:metrics.renders,invalidations:metrics.invalidations,
+ resizeEvents:metrics.resizeEvents,skippedHidden:metrics.skippedHidden,
+ lastRenderMs:metrics.lastRenderMs,maxRenderMs:metrics.maxRenderMs,
+ framePending:metrics.framePending,baseRenders:composition.baseRenders,baseHits:composition.baseHits,
+ baseDrawMs:composition.baseRenderMs,previewPixels:canvas.width*canvas.height,
+ textureCacheHits:textures.hits,textureCacheMisses:textures.misses,textureCachePixels:textures.livePixels,
+ texturePrepareMs:textures.lastPrepareMs,textureWorldMs:texturePass.lastWorldMs,
+ textureMaterialMs:texturePass.lastMaterialsMs,textureReliefMs:texturePass.lastReliefMs,
+ textureRasterCalls:texturePass.filteredRasterCalls,texturePreparedCalls:texturePass.preparedRasterCalls,
+ textureRasterCopies:texturePass.rasterCopies,textureCulledCopies:texturePass.culledCopies,
+ stateDrawMs:states.lastDrawMs,stateCacheHits:states.hits,stateCacheMisses:states.misses,
+ stateDrawnCopies:states.lastCopies,stateCulledCopies:states.lastCulled,
+ previewVisible:metrics.visible,
+ documentHidden:document.hidden,webviewWidth:bounds.width,webviewHeight:bounds.height};
+ desktopHealthPending=true;
+ const controller=new AbortController();
+ const abort=setTimeout(()=>controller.abort(),2000);
+ fetch('/api/desktop/heartbeat',{method:'POST',headers:{'X-CartoRig-Token':sessionToken,'Content-Type':'application/json'},body:JSON.stringify(body),signal:controller.signal})
+ .catch(()=>{}).finally(()=>{clearTimeout(abort);desktopHealthPending=false});
+}
+function initDesktopHealth(){
+ if(location.hostname!=='wails.localhost'||desktopHealthTimer!==null)return;
+ sendDesktopHealth('ready');
+ desktopHealthTimer=setInterval(()=>sendDesktopHealth('periodic'),5000);
+ window.addEventListener('cartorig-desktop-visibility',()=>sendDesktopHealth('visibility'));
+}
+function updateCanvasSize(){let box=wrap.getBoundingClientRect(),ratio=store.doc.canvas.width/store.doc.canvas.height;let cssW=Math.max(100,Math.min(box.width-34,(box.height-34)*ratio)),cssH=cssW/ratio;
+ // Bound desktop preview pixels. Native-resolution PNG/SVG/ZIP exports are unchanged.
+ let pxratio=location.hostname==='wails.localhost'?previewBackingScale(cssW,cssH,devicePixelRatio||1):Math.min(devicePixelRatio||1,2);previewW=cssW;previewH=cssH;canvas.style.width=cssW+'px';canvas.style.height=cssH+'px';let w=Math.max(100,Math.round(cssW*pxratio)),h=Math.max(100,Math.round(cssH*pxratio));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}return {w,h};}
+function renderPreviewNow(){if(!countries.length)return;let {w,h}=updateCanvasSize();let doc=store.doc;if(dragPreview){doc=clone(doc);if(dragPreview.camera)doc.camera={...doc.camera,...dragPreview.camera};if(dragPreview.anchor){let o=doc.objects[dragPreview.id];if(o)o.anchor=dragPreview.anchor;}if(dragPreview.object)doc.objects[dragPreview.id]=dragPreview.object;}
+ if(dragPreview){
+  // Moving an object or the camera genuinely changes the underlying scene.
+  renderScene(ctx,doc,countries,images,w,h,{preview:true,fastTextures:true,selection:store.selection,soloId});
+ }else{
+  previewCache.paint(ctx,{
+   doc,w,h,solo:soloId,assetsVersion:previewResourcesVersion,
+   drawBase:surface=>renderScene(surface,doc,countries,images,w,h,{preview:false,fastTextures:true,soloId}),
+   drawOverlay:surface=>drawPreviewSelection(surface,doc,countries,images,w,h,store.selection)
+  });
+ }
  if(creativeDraft?.points?.length){const draft=creativePreviewObject(doc);if(draft){ctx.save();ctx.globalAlpha=.7;drawCreative(ctx,doc,draft,w,h,project);ctx.restore();}}
  if(doc.canvas.transparent){ctx.save();ctx.globalCompositeOperation='destination-over';ctx.fillStyle='#202e3d';ctx.fillRect(0,0,w,h);ctx.fillStyle='#15212c';let tile=24;for(let y=0;y<h;y+=tile*2)for(let x=0;x<w;x+=tile*2){ctx.fillRect(x,y,tile,tile);ctx.fillRect(x+tile,y+tile,tile,tile);}ctx.restore();}$('previewSize').textContent=w+' × '+h;}
 function pointerXY(ev){let rect=canvas.getBoundingClientRect();return {x:(ev.clientX-rect.left)*canvas.width/rect.width,y:(ev.clientY-rect.top)*canvas.height/rect.height};}
@@ -413,22 +483,42 @@ function setupCanvas(){canvas.addEventListener('dblclick',e=>{const p=pointerXY(
  canvas.addEventListener('pointercancel',()=>{drag=null;dragPreview=null;wrap.classList.remove('dragging');drawPreview();});
  canvas.addEventListener('wheel',e=>{e.preventDefault();let p=pointerXY(e),[lon1,lat1]=unproject(store.doc,p.x,p.y,canvas.width,canvas.height);let zoom=clamp(store.doc.camera.zoom*(e.deltaY<0?1.17:1/1.17),.35,80);let draft=clone(store.doc);draft.camera.zoom=zoom;let [lon2,lat2]=unproject(draft,p.x,p.y,canvas.width,canvas.height);exec({type:'SetCameraPose',pose:{zoom,center_lon:clamp(store.doc.camera.center_lon+lon1-lon2,-180,180),center_lat:clamp(store.doc.camera.center_lat+lat1-lat2,-90,90)}});},{passive:false});}
 function newProject(){if(store.dirty&&!confirm('Discard unsaved changes and create a new project?'))return;store.replace(newDocument());localStorage.removeItem(currentKey);showToast('New scene created');}
-function downloadable(blob,name){let url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);}
+function resetMap(){
+ if(!appReady)return;
+ if(!confirm('Reset this map to its default state? This clears all objects, styles, labels, and map changes while keeping the current project name. You can undo this action.'))return;
+ if(!exec({type:'ResetScene',confirm:true}))return;
+ routeFrom=null;drag=null;dragPreview=null;creativeDraft=null;creativeCursor=null;editHandles=false;editOffset=false;soloId=null;
+ if(inlineTextEditor){wrap.querySelector('.creative-text-confirm')?.remove();inlineTextEditor.remove();inlineTextEditor=null;}
+ expanded.clear();setTool('select');showToast('Map reset to defaults · Undo is available');status('Map reset to defaults');
+}
+async function downloadable(blob,name){
+ if(location.hostname==='wails.localhost'||location.protocol==='wails:'){
+   const response=await fetch('/api/desktop/save?name='+encodeURIComponent(name),{
+     method:'POST',headers:{'X-CartoRig-Token':sessionToken,'Content-Type':blob.type||'application/octet-stream'},body:blob
+   });
+   if(response.status===204)return false;
+   if(!response.ok)throw Error('Save failed: '+(await response.text()).slice(0,250));
+   return true;
+ }
+ let url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;
+ document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+ return true;
+}
 function safeName(){return store.doc.name.trim().replace(/[^\p{L}\p{N}_-]+/gu,'_').slice(0,70)||'CartoRig_Scene';}
 async function saveProject(){try{await production.saveProject();}catch(e){showToast('Project save failed: '+e.message,true);status('Save failed');}}
 async function openProject(file){if(!file)return;try{const isZip=(await file.slice(0,2).text())==='PK';let legacy=null;if(!isZip){try{let raw=JSON.parse(await file.text());if(raw?.version===1)legacy=raw;}catch{}}if(legacy){const converted=migrateLegacy(legacy);validateDocument(converted);store.replace(converted);showToast('Map Composer V1 converted; use Save to preserve new project');}else{await production.openFile(file);}scheduleCache();setTab('layers');}catch(e){showToast('Could not open project: '+e.message,true);}}
 function canvasForExport(){let cv=document.createElement('canvas');cv.width=store.doc.canvas.width;cv.height=store.doc.canvas.height;return cv;}
 function pngBlob(canvas){return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('Canvas memory limit exceeded')),'image/png'));}
-async function exportImage(){let btn=$('exportImage');btn.disabled=true;try{status('Rendering PNG…');await document.fonts?.ready;await settleCreativeAssets(store.doc);let cv=canvasForExport();renderScene(cv.getContext('2d'),store.doc,countries,images,cv.width,cv.height);let blob=await pngBlob(cv);downloadable(blob,safeName()+'.png');cv.width=0;cv.height=0;status('PNG exported');showToast('PNG exported · '+store.doc.canvas.width+' × '+store.doc.canvas.height);}catch(e){showToast('Export failed: '+e.message,true);status('Export failed');}finally{btn.disabled=false;}}
+async function exportImage(){let btn=$('exportImage');btn.disabled=true;try{status('Rendering PNG…');await document.fonts?.ready;await settleCreativeAssets(store.doc);let cv=canvasForExport();renderScene(cv.getContext('2d'),store.doc,countries,images,cv.width,cv.height);let blob=await pngBlob(cv);if(!await downloadable(blob,safeName()+'.png'))return;cv.width=0;cv.height=0;status('PNG exported');showToast('PNG exported · '+store.doc.canvas.width+' × '+store.doc.canvas.height);}catch(e){showToast('Export failed: '+e.message,true);status('Export failed');}finally{btn.disabled=false;}}
 async function exportLayers(){let btn=$('exportLayers');btn.disabled=true;try{await document.fonts?.ready;await settleCreativeAssets(store.doc);let cv=canvasForExport(),context=cv.getContext('2d'),form=new FormData();let doc=store.doc,ids=treeIds(doc).filter(id=>doc.objects[id].type!=='Group'&&isVisible(doc,id));let manifest={app:'CartoRig',version:'2.0.4.1',geographic_datasets:geo?.dataStatus()||[],width:cv.width,height:cv.height,scene_id:doc.project_id,layers:[],background_transparent:doc.canvas.transparent};let total=ids.length+1;for(let [index,id] of ids.entries()){let o=doc.objects[id],file=String(index+1).padStart(3,'0')+'_'+o.type+'_'+o.name.replace(/[^\p{L}\p{N}_-]+/gu,'_').slice(0,40)+'.png';status('Rendering layer '+(index+1)+'/'+total);renderScene(context,doc,countries,images,cv.width,cv.height,{onlyIds:[id]});let blob=await pngBlob(cv);form.append('layer',blob,file);manifest.layers.push({file,id,type:o.type,name:o.name,visible:true});await new Promise(r=>setTimeout(r,0));}
  if(doc.map_labels&&Object.values(doc.map_labels.enabled||{}).some(Boolean)){
   const count=renderMapLabelLayer(context,doc,images,cv.width,cv.height);
   if(count){form.append('layer',await pngBlob(cv),'Map_Labels.png');manifest.layers.push({file:'Map_Labels.png',id:'map-labels',type:'MapLabels',name:'Map labels',visible:true});}
  }
- renderScene(context,doc,countries,images,cv.width,cv.height);form.append('final',await pngBlob(cv),'Final_Composite.png');form.append('project',JSON.stringify(doc));form.append('manifest',JSON.stringify(manifest));status('Packaging layers…');let res=await fetch('/api/scene-bundle',{method:'POST',headers:{'X-CartoRig-Token':sessionToken},body:form});if(!res.ok)throw Error((await res.text()).slice(0,200));downloadable(await res.blob(),safeName()+'_Layers.zip');cv.width=0;cv.height=0;status('Layers exported');showToast('Layered ZIP exported · '+ids.length+' individual layers');}catch(e){status('Layer export failed');showToast('Could not export layers: '+e.message,true);}finally{btn.disabled=false;}}
+ renderScene(context,doc,countries,images,cv.width,cv.height);form.append('final',await pngBlob(cv),'Final_Composite.png');form.append('project',JSON.stringify(doc));form.append('manifest',JSON.stringify(manifest));status('Packaging layers…');let res=await fetch('/api/scene-bundle',{method:'POST',headers:{'X-CartoRig-Token':sessionToken},body:form});if(!res.ok)throw Error((await res.text()).slice(0,200));if(!await downloadable(await res.blob(),safeName()+'_Layers.zip'))return;cv.width=0;cv.height=0;status('Layers exported');showToast('Layered ZIP exported · '+ids.length+' individual layers');}catch(e){status('Layer export failed');showToast('Could not export layers: '+e.message,true);}finally{btn.disabled=false;}}
 function deleteSelected(){let ids=topSelection();if(!ids.length)return;let names=ids.map(id=>store.doc.objects[id].name);if(!confirm('Delete '+names.length+' selected object(s)?\n'+names.join(', ')))return;for(let id of ids){if(!store.doc.objects[id])continue;let ok=exec({type:'DeleteObject',id});if(!ok&&confirm('This object is referenced. Freeze linked coordinates and delete?'))exec({type:'DeleteObject',id,freeze:true});}}
 function bindButtons(){
- $('newProject').onclick=newProject;$('saveProject').onclick=saveProject;$('openProject').onclick=()=>$('projectFile').click();$('projectFile').onchange=e=>{openProject(e.target.files[0]);e.target.value='';};$('projectName').onchange=e=>exec({type:'SetProjectName',name:e.target.value});$('saveAsProject').onclick=()=>void production.saveProject({downloadFile:true}).catch(e=>showToast('Save As failed: '+e.message,true));
+ $('newProject').onclick=newProject;$('saveProject').onclick=saveProject;$('resetMap').onclick=resetMap;$('openProject').onclick=()=>$('projectFile').click();$('projectFile').onchange=e=>{openProject(e.target.files[0]);e.target.value='';};$('projectName').onchange=e=>exec({type:'SetProjectName',name:e.target.value});$('saveAsProject').onclick=()=>void production.saveProject({downloadFile:true}).catch(e=>showToast('Save As failed: '+e.message,true));
  $('undo').onclick=()=>store.undo();$('redo').onclick=()=>store.redo();$('duplicate').onclick=()=>{if(store.selection.length===1)exec({type:'DuplicateObject',id:store.selection[0]});};$('delete').onclick=deleteSelected;
  $('newGroup').onclick=()=>{if(store.selection.length){if(exec({type:'GroupSelection',ids:store.selection}))expanded.add(store.selection[0]);}else {let o=madeObject('Group','New Group',{children:[]});exec({type:'CreateObject',object:o});expanded.add(o.id);}};
  $('ungroup').onclick=()=>{if(store.selection.length===1)exec({type:'Ungroup',id:store.selection[0]});};$('centerView').onclick=fitSelection;$('worldView').onclick=()=>exec({type:'SetCameraPose',pose:{center_lon:0,center_lat:10,zoom:1,bearing:0}});$('zoomIn').onclick=()=>exec({type:'SetCameraPose',pose:{zoom:store.doc.camera.zoom*1.4}});$('zoomOut').onclick=()=>exec({type:'SetCameraPose',pose:{zoom:store.doc.camera.zoom/1.4}});
@@ -437,13 +527,12 @@ function bindButtons(){
  $('countrySearch').oninput=()=>queueCountrySearch();$('continent').onchange=()=>{updateCountryFilter();queueCountrySearch(true);};$('geoCountry').onchange=()=>queueCountrySearch(true);$('geoType').onchange=()=>queueCountrySearch(true);$('importDataset').onclick=()=>$('datasetFile').click();$('datasetFile').onchange=async e=>{await importGeoFile(e.target.files?.[0]);e.target.value='';};$('layerSearch').oninput=renderTree;
  document.querySelectorAll('[data-style]').forEach(btn=>btn.onclick=()=>exec({type:'ApplyStyle',id:btn.dataset.style}));$('showBrazilStates').onchange=e=>exec({type:'SetThemeProperty',key:'show_state_boundaries',value:e.target.checked});for(let typ of ['River','Lake','Coastline'])$('show'+typ+'s').onchange=e=>exec({type:'SetThemeProperty',key:`show_${typ.toLowerCase()}s`,value:e.target.checked});
  $('resolution').onchange=e=>{let [width,height]=e.target.value.split('x').map(Number);exec({type:'SetCanvas',canvas:{width,height}});};$('transparent').onchange=e=>exec({type:'SetCanvas',canvas:{transparent:e.target.checked}});$('exportImage').onclick=exportImage;$('exportLayers').onclick=exportLayers;
- $('quitApp').onclick=async()=>{if(store.dirty&&!confirm('Exit with unsaved changes?'))return;try{await fetch('/api/quit',{method:'POST',headers:{'X-CartoRig-Token':sessionToken}});document.body.innerHTML='<div style="padding:60px;color:#eee;background:#101a25;height:100vh;font-family:Segoe UI">CartoRig closed. You may close this window.</div>';}catch(e){showToast(e.message,true);}};
- window.addEventListener('cartorig-asset-loaded',()=>drawPreview());window.addEventListener('keydown',e=>{let editing=e.target.matches('input,textarea,select,[contenteditable=true]');if(e.key==='Escape'){routeFrom=null;if(inlineTextEditor){wrap.querySelector('.creative-text-confirm')?.remove();inlineTextEditor.remove();inlineTextEditor=null;}setTool('select');return;}if(editing)return;
+ window.addEventListener('cartorig-asset-loaded',()=>invalidatePreviewResources());window.addEventListener('keydown',e=>{let editing=e.target.matches('input,textarea,select,[contenteditable=true]');if(e.key==='Escape'){routeFrom=null;if(inlineTextEditor){wrap.querySelector('.creative-text-confirm')?.remove();inlineTextEditor.remove();inlineTextEditor=null;}setTool('select');return;}if(editing)return;
  if(e.key==='Enter'&&creativeDraft){e.preventDefault();commitCreativeDraft();return;}let ctrl=e.ctrlKey||e.metaKey;if(ctrl){if(e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?store.redo():store.undo();}else if(e.key.toLowerCase()==='y'){e.preventDefault();store.redo();}else if(e.key.toLowerCase()==='s'){e.preventDefault();saveProject();}else if(e.key.toLowerCase()==='o'){e.preventDefault();$('projectFile').click();}else if(e.key.toLowerCase()==='n'){e.preventDefault();newProject();}else if(e.key.toLowerCase()==='d'){e.preventDefault();if(store.selection.length===1)exec({type:'DuplicateObject',id:store.selection[0]});}else if(e.key.toLowerCase()==='g'){e.preventDefault();if(e.shiftKey){if(store.selection.length===1)exec({type:'Ungroup',id:store.selection[0]});}else if(store.selection.length){exec({type:'GroupSelection',ids:store.selection});}}else if(e.key.toLowerCase()==='e'&&e.shiftKey){e.preventDefault();exportLayers();}return;}
  if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();deleteSelected();}else if(e.key.toLowerCase()==='v')setTool('select');else if(e.key.toLowerCase()==='h')setTool('pan');else if(e.key.toLowerCase()==='r')setTool('route');else if(e.key.toLowerCase()==='t')setTool('label');else if(e.key.toLowerCase()==='m')setTool('marker');else if(e.key.toLowerCase()==='d')setTool('shape');else if(e.key.toLowerCase()==='f')fitSelection();else if(e.key==='0')$('worldView').click();});
 }
 async function init(){
- bindTabs();bindButtons();setupNavigation();setupCanvas();try{let session=await fetch('/api/session');sessionToken=(await session.json()).token||'';void styleStudio.loadGlobal();}catch(e){status('Session unavailable');showToast('Session initialization failed',true);return;}try{let resp=await fetch('/assets/countries.json');if(!resp.ok)throw Error('HTTP '+resp.status);countries=await resp.json();byIso=new Map(countries.map(c=>[c.iso,c]));status('Ready · '+countries.length+' countries');}catch(e){status('Dataset error');showToast('Country dataset unavailable: '+e.message,true);return;}
+ bindTabs();bindButtons();setupNavigation();setupCanvas();try{let session=await fetch('/api/session');sessionToken=(await session.json()).token||'';void styleStudio.loadGlobal();}catch(e){status('Session unavailable');showToast('Session initialization failed',true);return;}try{let resp=await fetch('/assets/countries.json');if(!resp.ok)throw Error('HTTP '+resp.status);countries=normalizeCountryIds(await resp.json());byIso=new Map(countries.map(c=>[c.iso,c]));status('Ready · '+countries.length+' countries');}catch(e){status('Dataset error');showToast('Country dataset unavailable: '+e.message,true);return;}
  let geoRead=async(path,fallback)=>{try{let r=await fetch('/assets/geodata/'+path);if(!r.ok)throw Error('Unavailable');return await r.json();}catch(e){console.warn('Optional geo metadata unavailable:',path);return fallback;}};
  const seeds=await geoRead('localities.json',[]),unavailable=await geoRead('admin1-names.json',[]),continents=await geoRead('continents.json',{});
  geo=new GeoCatalog(countries,seeds);geo.continents=continents;geo.setUnavailableStates(unavailable);
@@ -465,9 +554,9 @@ async function init(){
   image.src='/assets/look-materials/'+name+'.png';
   try{await image.decode();}catch(e){console.warn('Scene Look material unavailable:',name,e);}
  });
- void Promise.allSettled(materialLoads).then(()=>drawPreview());
- for(let t of ['bmng','etopo1','shadedrelief']){let im=new Image();im.src='/assets/'+t+'.jpg';im.onload=()=>{drawPreview();};images[t]=im;}
+ void Promise.allSettled(materialLoads).then(()=>invalidatePreviewResources());
+ for(let t of ['bmng','etopo1','shadedrelief']){let im=new Image();im.src='/assets/'+t+'.jpg';im.onload=()=>{invalidatePreviewResources();};images[t]=im;}
  let existing=null;try{let raw=localStorage.getItem(currentKey);if(raw){existing=JSON.parse(raw);validateDocument(existing);}else{let legacy=JSON.parse(localStorage.getItem(legacyKey)||'null');if(legacy?.version===1)existing=migrateLegacy(legacy);}}catch(e){console.warn('Recovery cache invalid:',e);existing=null;}if(existing){store.replace(existing);status('Recovered previous composition');}else store.replace(newDocument());
- updateCountryFilter();renderCountryList();setTab('layers');setRightTab('styles');syncUI();appReady=true;document.getElementById('app').classList.remove('loading');void production.recoveryCheck();new ResizeObserver(drawPreview).observe(wrap);void Promise.all([ensureWorldAdmin1(),ensureWorldCities()]);
+ updateCountryFilter();renderCountryList();setTab('layers');setRightTab('styles');syncUI();appReady=true;document.getElementById('app').classList.remove('loading');void production.recoveryCheck();new ResizeObserver(()=>previewScheduler.onResize()).observe(wrap);initDesktopHealth();void Promise.all([ensureWorldAdmin1(),ensureWorldCities()]);
 }
 init();

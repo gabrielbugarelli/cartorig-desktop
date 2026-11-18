@@ -61,12 +61,124 @@ export function setupProductionStudio({getDoc,getSelection,execute,getCountries,
    try{await json('/api/v2/autosave',projectDoc());}catch(err){console.warn('Autosave could not complete:',err);status('Autosave unavailable; use Save to preserve the project');}
   },3000);
  }
- async function recoveryCheck(){try{const items=await (await api('/api/v2/recovery')).json();if(!items.length)return;const x=items[0];if(confirm(`Recover a newer CartoRig autosave?\n${x.name} · revision ${x.revision}\n\nOK: Recover Copy · Cancel: Keep current project`)){
- const doc=await (await api('/api/v2/recovery/'+x.id)).json();doc.project_id=crypto.randomUUID();doc.name+=' (Recovered)';replaceDoc(doc);scheduleAutosave();notify('Recovery opened as a copy');}
- }catch(e){console.warn('Recovery check failed:',e)}}
+ // Autosave recovery is available in the project manager, never a startup prompt.
+ // Selection is scoped to recoveries currently displayed in the dialog.
+ let recoveryItems=[],recoverySelected=new Set(),recoveryDeleting=false;
+ async function listRecoveries(){
+  const response=await api('/api/v2/recovery'),items=await response.json();
+  return Array.isArray(items)?items:[];
+ }
+ async function recoveryCheck(){
+  try{
+   const items=await listRecoveries(),trigger=$('openProjects');
+   trigger.textContent=items.length?'Projects & recovery · '+items.length:'Projects & recovery';
+   trigger.title=items.length?items.length+' autosave(s) available':'Saved projects and recovery';
+  }catch(e){console.warn('Recovery status unavailable',e);}
+ }
+ function syncRecoveryControls(){
+  const count=recoveryItems.reduce((total,item)=>total+(recoverySelected.has(item.id)?1:0),0);
+  const total=recoveryItems.length;
+  const selectAll=$('prodRecoverySelectAll');
+  selectAll.checked=total>0&&count===total;
+  selectAll.indeterminate=count>0&&count<total;
+  selectAll.disabled=recoveryDeleting||total===0;
+  $('prodRecoverySelected').textContent=count+' de '+total+' selecionada(s)';
+  $('prodRecoveryDelete').disabled=recoveryDeleting||count===0;
+  $('prodRecoveryDelete').textContent='Excluir selecionadas'+(count?' ('+count+')':'');
+  $('prodRecoveryDeleteAll').disabled=recoveryDeleting||total===0;
+  for(const item of $('prodRecoveries').querySelectorAll('input[type="checkbox"],button')){
+   item.disabled=recoveryDeleting||item.dataset.restoring==='true';
+  }
+ }
+ async function renderRecoveries(){
+  const section=$('prodRecoverySection'),host=$('prodRecoveries');
+  const items=await listRecoveries();
+  recoveryItems=items;
+  const available=new Set(items.map(item=>item.id));
+  recoverySelected=new Set([...recoverySelected].filter(id=>available.has(id)));
+  host.replaceChildren();
+  section.hidden=!items.length;
+  for(const item of items){
+   const row=document.createElement('div');
+   row.className='prod-recovery-row';
+   const checkLabel=document.createElement('label');
+   checkLabel.className='prod-recovery-item-select';
+   const checkbox=document.createElement('input');
+   checkbox.type='checkbox';checkbox.checked=recoverySelected.has(item.id);
+   checkbox.setAttribute('aria-label','Selecionar recuperação '+item.name+', revisão '+item.revision);
+   checkbox.onchange=()=>{
+    checkbox.checked?recoverySelected.add(item.id):recoverySelected.delete(item.id);
+    syncRecoveryControls();
+   };
+   checkLabel.append(checkbox);
+   const button=document.createElement('button');
+   button.type='button';button.className='prod-recent';
+   button.textContent=item.name+' · Revision '+item.revision+' · Restore copy';
+   button.title='Restore autosave as a separate project; back up the current map first';
+   button.onclick=async()=>{
+    button.disabled=true;button.dataset.restoring='true';
+    try{
+     // Read the requested version before writing anything: a current map
+     // may share this autosave's project ID.
+     const recovered=await(await api('/api/v2/recovery/'+encodeURIComponent(item.id))).json();
+     // Keep unsaved changes as a separate recovery; never overwrite the
+     // snapshot that the user selected for restoration.
+     const current=projectDoc();
+     current.project_id=crypto.randomUUID();
+     current.name+=' (Before recovery)';
+     current.revision=0;
+     await json('/api/v2/autosave',current);
+     recovered.project_id=crypto.randomUUID();recovered.name+=' (Recovered)';
+     replaceDoc(recovered);scheduleAutosave();
+     closeModal('productionProjects');
+     notify('Recovery opened as a copy');
+    }catch(e){button.disabled=false;delete button.dataset.restoring;notify('Recovery failed: '+e.message,true);}
+   };
+   row.append(checkLabel,button);
+   host.append(row);
+  }
+  syncRecoveryControls();
+ }
+ async function deleteRecoveries(all=false){
+  if(recoveryDeleting)return;
+  // Always send explicit IDs. A new autosave added after opening the dialog
+  // cannot be deleted accidentally by an old "select all" operation.
+  const ids=recoveryItems.filter(item=>all||recoverySelected.has(item.id)).map(item=>item.id);
+  if(!ids.length)return;
+  const prompt=all?'Excluir todas as '+ids.length+' recuperações exibidas?':
+   'Excluir permanentemente '+ids.length+' recuperação(ões) selecionada(s)?';
+  if(!confirm(prompt+'\nEssa ação não pode ser desfeita. Projetos salvos e templates serão preservados.'))return;
+  // Do not immediately recreate the deleted active snapshot via an autosave
+  // timer that was queued before the user chose to clear the history.
+  if(ids.includes(getDoc()?.project_id)){clearTimeout(autoTimer);autoTimer=null;}
+  recoveryDeleting=true;syncRecoveryControls();
+  try{
+   const response=await api('/api/v2/recovery',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});
+   const result=await response.json();
+   ids.forEach(id=>recoverySelected.delete(id));
+   await renderRecoveries();
+   await recoveryCheck();
+   notify(result.deleted+' recuperação(ões) excluída(s)');
+  }catch(e){
+   notify('Could not delete recoveries: '+e.message,true);
+   try{await renderRecoveries();}catch{}
+  }finally{recoveryDeleting=false;syncRecoveryControls();}
+ }
+ function bindRecoveryActions(){
+  $('prodRecoverySelectAll').onchange=event=>{
+   if(event.target.checked)for(const item of recoveryItems)recoverySelected.add(item.id);
+   else recoverySelected.clear();
+   for(const checkbox of $('prodRecoveries').querySelectorAll('input[type="checkbox"]')){
+    checkbox.checked=event.target.checked;
+   }
+   syncRecoveryControls();
+  };
+  $('prodRecoveryDelete').onclick=()=>void deleteRecoveries(false);
+  $('prodRecoveryDeleteAll').onclick=()=>void deleteRecoveries(true);
+ }
  async function recentProjects(){let list=await (await api('/api/v2/project/recent')).json();let content=$('prodRecent');content.replaceChildren();if(!list.length){content.textContent='No saved projects yet.';return};for(let x of list){let b=document.createElement('button');b.className='prod-recent';b.textContent=x.name+'  ·  Revision '+x.revision+'  ·  '+x.modified;b.onclick=async()=>{try{if(getDoc()&&confirm('Open saved project? Unsaved changes in the current scene will be discarded.')===false)return;let data=await (await api('/api/v2/project/load?id='+encodeURIComponent(x.id))).json();replaceDoc(data);savedProjectId=x.id;closeModal('productionProjects');notify('Opened '+x.name)}catch(e){notify('Cannot open recent project: '+e.message,true)}};content.append(b)}}
  async function projects(){
-    await recentProjects();const builtins=$('prodTemplates');builtins.replaceChildren();
+    await recentProjects();await renderRecoveries();const builtins=$('prodTemplates');builtins.replaceChildren();
     for(const t of PROJECT_TEMPLATES){const b=document.createElement('button');b.className='prod-recent';b.textContent=t.name+' — '+t.description;b.onclick=()=>{if(!confirm('Create a new project from this template? The current project will be replaced.'))return;replaceDoc(createTemplate(t.id));closeModal('productionProjects');notify('Template created: '+t.name)};builtins.append(b)}
     const customs=$('prodCustomTemplates');customs.replaceChildren();
     try{const list=await (await api('/api/v2/project/templates')).json();for(const t of list){const b=document.createElement('button');b.className='prod-recent';b.textContent=t.name;b.onclick=async()=>{if(!confirm('Create a project from this custom template?'))return;const d=await (await api('/api/v2/project/template/'+t.id)).json();d.project_id=crypto.randomUUID();d.revision=0;d.name+=' (Copy)';replaceDoc(d);closeModal('productionProjects')};customs.append(b)}}catch(e){console.warn('Custom templates unavailable',e)}
@@ -178,7 +290,8 @@ export function setupProductionStudio({getDoc,getSelection,execute,getCountries,
  function openExport(){refreshExportPresets();$('prodTransparent').checked=!!getDoc().canvas.transparent;openModal('productionExport');showPreflight()}
  async function cancelExport(){if(exportAbort){exportAbort.abort();$('prodProgress').textContent='Canceling export…';if(exportId){try{await api('/api/v2/export/session/'+exportId,{method:'DELETE'})}catch{}}}}
  function bind(){
-  $('openProduction').onclick=openExport;$('prodClose').onclick=()=>closeModal('productionExport');$('prodRun').onclick=()=>void exportPackage();$('prodCancelExport').onclick=()=>void cancelExport();$('prodSavePreset').onclick=saveExportPreset;$('prodApplyPreset').onclick=applyExportPreset;$('prodDeletePreset').onclick=deleteExportPreset;
+  bindRecoveryActions();
+ $('openProduction').onclick=openExport;$('prodClose').onclick=()=>closeModal('productionExport');$('prodRun').onclick=()=>void exportPackage();$('prodCancelExport').onclick=()=>void cancelExport();$('prodSavePreset').onclick=saveExportPreset;$('prodApplyPreset').onclick=applyExportPreset;$('prodDeletePreset').onclick=deleteExportPreset;
   $('openProjects').onclick=()=>void projects().catch(e=>notify(e.message,true));$('prodProjectsClose').onclick=()=>closeModal('productionProjects');$('prodSave').onclick=()=>void saveProject().catch(e=>notify('Save failed: '+e.message,true));$('prodSaveAs').onclick=()=>void saveProject({downloadFile:true}).catch(e=>notify('Save As failed: '+e.message,true));$('prodSaveTemplate').onclick=()=>void json('/api/v2/project/template',projectDoc()).then(()=>{notify('Project saved as reusable template');return recentProjects()}).catch(e=>notify('Template save failed: '+e.message,true));
   for(let id of ['prodScope','prodFormat','prodGranularity','prodResolution','prodMaskOpaque','prodTransparent','prodIncludeBackground','prodUseTiles'])$(id).addEventListener('change',showPreflight);
  }

@@ -27,6 +27,29 @@ function extraAliases(name,p={}) {
  const fields=Object.entries(p).filter(([k,v])=>/^(name($|_|par|alt|ascii|local)|ls_name|meganame|postal|iso_3166_2)/i.test(k)&&typeof v==='string'&&v.trim()).map(([,v])=>v);
  return [...fields,...(aliasGeo[geoNormalize(name)]||[])];
 }
+// Natural Earth uses ISO_A3="-99" for multiple unrelated countries/territories.
+// A deterministic name-qualified source ID prevents geometry collisions.
+export function canonicalCountryId(country){
+ const iso=String(country?.iso??'').trim();
+ if(iso&&iso!=='-99')return iso;
+ return `ne110-name:${geoNormalize(country?.name).replace(/ /g,'-')}`;
+}
+export function normalizeCountryIds(countries){
+ return countries.map(c=>({...c,iso:canonicalCountryId(c)}));
+}
+// Pre-fix .cartorig projects hold the ambiguous -99 ID. Resolve them by
+// their original geographic source name, not by the mutable layer title.
+// Never silently select the first country for an ambiguous identifier.
+export function countryForRegion(region,countries=[],geo=null,zoom=1){
+ const id=String(region?.source?.feature_id??'');
+ const available=geo?.getCountriesForDraw?.(zoom)||countries;
+ if(id==='-99'){
+  const originalName=geoNormalize(region?.geo_source_info?.name||region?.name);
+  if(!originalName)return null;
+  return available.find(c=>canonicalCountryId(c).startsWith('ne110-name:')&&geoNormalize(c.name)===originalName)||null;
+ }
+ return available.find(c=>canonicalCountryId(c)===id)||null;
+}
 export const worldContinents=['Africa','Asia','Europe','North America','South America','Oceania'];
 const aliasCountry={'Brazil':['Brasil'],'Russia':['Rússia'],'Ukraine':['Ucrânia'],'Germany':['Alemanha'],'Spain':['Espanha'],'United States of America':['Estados Unidos','EUA','USA'],'United Kingdom':['Reino Unido','Inglaterra'],'France':['França'],'Poland':['Polônia'],'China':['China'],'Iran':['Irã'],'South Korea':['Coreia do Sul'],'North Korea':['Coreia do Norte'],'Saudi Arabia':['Arábia Saudita'],'Japan':['Japão'],'Turkey':['Turquia'],'Sweden':['Suécia'],'Greece':['Grécia'],'Netherlands':['Holanda'],'Egypt':['Egito'],'Australia':['Austrália'],'India':['Índia']};
 const nameOf=p=>p.name_en||p.NAME_EN||p.name||p.NAME||p.NAME_1||p.nameascii||p.NAMEASCII||p.nome||p.NOME||p.admin||p.ADMIN||'';
@@ -52,7 +75,7 @@ export function featureFocusBounds(geometry){
 }
 export function inferGeoType(fileName){let s=fileName.toLowerCase();return /admin[_-]?1|states|provinces/.test(s)?'State':/populated|places|cities/.test(s)?'City':/rivers|river/.test(s)?'River':/lake/.test(s)?'Lake':/coast/.test(s)?'Coastline':/admin[_-]?0|countries/.test(s)?'Country':null;}
 export class GeoCatalog {
- constructor(countries=[],seeds=[]){this.countries=countries;this.countryContinent=new Map(countries.map(c=>[geoNormalize(c.name),c.continent||'']));this.datasets=new Map();this.entries=[];this.version=0;this.setSeedCities(seeds);this.unavailableStates=[];this.rebuild();}
+ constructor(countries=[],seeds=[]){this.countries=normalizeCountryIds(countries);this.countryContinent=new Map(this.countries.map(c=>[geoNormalize(c.name),c.continent||'']));this.datasets=new Map();this.entries=[];this.version=0;this.setSeedCities(seeds);this.unavailableStates=[];this.rebuild();}
  setUnavailableStates(entries){this.unavailableStates=entries.filter(x=>x.name&&x.type==='State'&&x.parent).map(x=>({...x,source_id:x.source_id||'metadata-only',geometry_type:'Unavailable'}));this.rebuild();}
  setSeedCities(seeds){this.seedCities=seeds.filter(e=>typeof e.name==='string'&&finite(e.lon)&&finite(e.lat)&&Math.abs(e.lon)<=180&&Math.abs(e.lat)<=90).map(e=>({...e,type:'City',source_id:e.source_id||'curated-location-anchors',geometry_type:'Point',geometry:{type:'Point',coordinates:[e.lon,e.lat]},aliases:[...(e.aliases||[]),...extraAliases(e.name)],id:e.id||`seed:${e.name}:${e.parent||''}`}));}
  install(fileName,content,type=null){if(!content||content.type!=='FeatureCollection'||!Array.isArray(content.features))throw Error('Expected a GeoJSON FeatureCollection');const kind=type&&type!=='Auto'?type:inferGeoType(fileName);if(!kind||!['Country','State','City','River','Lake','Coastline'].includes(kind))throw Error('Choose an explicit geographic dataset type');if(content.features.length>20000)throw Error('Dataset exceeds 20,000 features; preprocess it first');
@@ -227,7 +250,7 @@ export class GeoCatalog {
  }
  search(query='',type='All',continent='',limit=180,country=''){return this.searchPage(query,type,continent,limit,country).items;}
  lookup(sourceId,featureId){
-  if(sourceId==='ne_admin0_110m')return this.countries.find(c=>c.iso===featureId);
+  if(sourceId==='ne_admin0_110m')return featureId==='-99'?null:this.countries.find(c=>c.iso===featureId);
   if(sourceId?.startsWith('continent:'))return null;
   const entries=this._entryById?.get(String(featureId))||[];
   return entries.find(e=>!sourceId||e.source_id===sourceId)||null;

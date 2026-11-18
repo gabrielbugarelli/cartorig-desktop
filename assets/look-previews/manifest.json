@@ -254,8 +254,8 @@
     "look-materials/tactical_noise.png": "5a8154df1b78a378286d6de46d5f663f456cce10270ddfbc19c126fa13397e57",
     "look-materials/watercolor_wash.png": "475d3c573852f200577f7c6a439ee28cd87e98d06ee149c459d1fb135ea462c5",
     "reference-looks.js": "2d1902df572aa1c9638cdbaebc0ae72e55cc937975c26de7c098adaab3c9c8a6",
-    "scene-core.js": "d5b4f177f889ed83bdcb95fba8b0d0789b10fdeb395898cd3186fd0a231c0df4",
-    "scene-renderer.js": "012feffcce3e00cec1436cfd64a94766f4c8bc064a45ee33ee6a22b08bb5462c",
+    "scene-core.js": "81488eaa3e1fcd73d8bedca74419b9d75a3c39d0241b787c8a8976a3d6f8063c",
+    "scene-renderer.js": "f8238d6985ec57411bbc3f10cb41b18b1221f347d1ab5f07a20e16f7a6151ef3",
     "shadedrelief.jpg": "e52e46e82d14f7d321a287c9c323603cbe0fe9c25861e191eadfcad4129a39d0",
     "style-effects.js": "e1ff459e96bcbea23ee7008e73677a40e98a4ed9cb1b3a8639573eba8d75ccd8",
     "style-resolver.js": "6b10eeaaf4eacebe7a4abf2b1dcf2068bcac8ea0445b9122a87d917d837e70a4"
