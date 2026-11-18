@@ -369,3 +369,9 @@ button:disabled{cursor:not-allowed}
  .ux-project-manager .ux-pm-tabs button{padding:9px 4px;font-size:12px}
  .ux-pm-actions button{flex:1;min-width:135px}
 }
+
+
+.tree-row .node-actions button{display:inline-grid;place-items:center;min-width:28px;min-height:30px;border-radius:5px}
+.tree-row .node-actions svg{width:17px;height:17px;display:block;pointer-events:none}
+.tree-row .node-actions button:focus-visible{outline:2px solid #81caff;outline-offset:1px}
+.tree-row .node-actions button.off{color:#6d8295}
