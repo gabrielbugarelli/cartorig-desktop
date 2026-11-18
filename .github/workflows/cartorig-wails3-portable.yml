@@ -31,6 +31,9 @@ jobs:
           node tests/test_state_boundaries.mjs
           node tests/test_label_stack.mjs
           node tests/test_recovery_bulk_ui.mjs
+          node tests/test_ui_stage1.mjs
+          node --check assets/app.js
+          node --check assets/production-studio.js
           node tests/test_preview_cache.mjs
           node tests/test_preview_lifecycle.mjs
           node tests/test_preview_composition_integration.mjs
