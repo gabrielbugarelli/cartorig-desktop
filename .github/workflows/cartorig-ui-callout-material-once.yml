@@ -2,6 +2,7 @@ name: CartoRig Callout + Material One-time Windows QA
 # UI/UX development: manually start builds only when a portable is needed.
 # Public repository + standard windows-2022 runner: no metered runner compute.
 # Temporary QA run on the free standard Windows runner.
+# Re-run after fixing Callout NaN and refreshing pinned build fingerprints.
 on:
   push:
     branches:
