@@ -148,6 +148,9 @@ export function setupProductionStudio({getDoc,getSelection,execute,getCountries,
   const prompt=all?'Excluir todas as '+ids.length+' recuperações exibidas?':
    'Excluir permanentemente '+ids.length+' recuperação(ões) selecionada(s)?';
   if(!confirm(prompt+'\nEssa ação não pode ser desfeita. Projetos salvos e templates serão preservados.'))return;
+  // Do not immediately recreate the deleted active snapshot via an autosave
+  // timer that was queued before the user chose to clear the history.
+  if(ids.includes(getDoc()?.project_id)){clearTimeout(autoTimer);autoTimer=null;}
   recoveryDeleting=true;syncRecoveryControls();
   try{
    const response=await api('/api/v2/recovery',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});
