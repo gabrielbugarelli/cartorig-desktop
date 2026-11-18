@@ -29,6 +29,31 @@ try {
         [System.IO.File]::WriteAllBytes((Resolve-Path $path), $converted)
         Write-Host "Restored LF line endings: $path"
     }
+    # The fullgeo release guard fingerprints raw UTF-8 bytes. Windows
+    # autocrlf changes these bytes unless each pinned asset is restored.
+    # Never bypass the guard or recalculate expected hashes to match damage.
+    $geoManifest = Get-Content -Raw 'assets/geodata/offline_integrity.json' | ConvertFrom-Json
+    foreach ($entry in $geoManifest.datasets.PSObject.Properties) {
+        $expected = [string]$entry.Value.sha256
+        $path = Join-Path 'assets/geodata' ([string]$entry.Value.file)
+        $actual = (Get-FileHash $path -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($actual -eq $expected) { continue }
+        $raw = [System.IO.File]::ReadAllBytes((Resolve-Path $path))
+        $text = [System.Text.Encoding]::UTF8.GetString($raw)
+        $lf = $text.Replace([Environment]::NewLine, [string][char]10)
+        $utf8 = [System.Text.UTF8Encoding]::new($false)
+        $converted = $utf8.GetBytes($lf)
+        $checksum = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($converted)).ToLowerInvariant()
+        if ($checksum -ne $expected) {
+            throw "Offline dataset hash mismatch: $path (got $actual, normalized $checksum, expected $expected)"
+        }
+        [System.IO.File]::WriteAllBytes((Resolve-Path $path), $converted)
+        Write-Host "Restored locked offline dataset bytes: $path"
+    }
+    # Explicit fullgeo test runs the same package init() checks as the
+    # production executable; a broken release may no longer compile quietly.
+    & go test -tags fullgeo ./...
+    if ($LASTEXITCODE -ne 0) { throw 'Fullgeo release guard failed: refusing to build portable EXE' }
     if (-not $SkipTests) {
         & go test ./...
         if ($LASTEXITCODE -ne 0) { throw 'Legacy CartoRig tests failed' }

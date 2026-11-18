@@ -28,7 +28,6 @@ jobs:
         run: ./scripts/build-wails3-portable.ps1
       - name: Smoke test GUI launch on Windows runner
         id: smoke
-        continue-on-error: true
         shell: pwsh
         env:
           CARTORIG_NO_GUI_ERRORS: '1'
