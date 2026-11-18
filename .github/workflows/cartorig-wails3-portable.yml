@@ -7,6 +7,8 @@ on:
     paths:
       - 'main_wails.go'
       - 'desktop_http.go'
+      - 'production.go'
+      - 'production_recovery_delete_test.go'
       - 'assets/**'
       - 'go.desktop.mod'
       - 'scripts/build-wails3-portable.ps1'
@@ -33,6 +35,7 @@ jobs:
           node tests/test_texture_render_path.mjs
           node tests/test_state_boundaries.mjs
           node tests/test_label_stack.mjs
+          node tests/test_recovery_bulk_ui.mjs
           node tests/test_preview_cache.mjs
           node tests/test_preview_lifecycle.mjs
           node tests/test_preview_composition_integration.mjs
