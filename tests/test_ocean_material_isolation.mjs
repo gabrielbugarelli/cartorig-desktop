@@ -18,7 +18,8 @@ const render=make((ctx,images,doc,key,strength,mask,w,h,requestedMasks)=>{
 const doc=newDocument();doc.theme.id='atlas';
 assert.equal(themeValue(doc,'surface_material'),'paper_clean');
 assert.equal(themeValue(doc,'land_material'),'paper_fibrous');
-assert.equal(themeValue(doc,'ocean_material'),'marine_noise');
+assert.equal(themeValue(doc,'ocean_material'),'none','Atlas ocean should be clean by default');
+assert.equal(themeValue(doc,'ocean_material_strength'),0);
 assert.equal(themeValue(doc,'cartographic_finish'),'ink_grain');
 render({},doc,[],{},1280,720);
 assert.deepEqual(calls.map(x=>[x.key,x.mask]),[
@@ -27,6 +28,13 @@ assert.deepEqual(calls.map(x=>[x.key,x.mask]),[
  ['land_material','land'],
  ['cartographic_finish','land']
 ],'paper, land and print textures must never be painted across the sea');
+// Explicitly requested marine patterns still use the ocean-only mask.
+doc.theme.overrides.ocean_material='marine_waves';
+doc.theme.overrides.ocean_material_strength=.6;
+calls.length=0;render({},doc,[],{},1280,720);
+assert.equal(themeValue(doc,'ocean_material'),'marine_waves');
+assert.equal(themeValue(doc,'ocean_material_strength'),.6);
+assert.deepEqual(calls.find(x=>x.key==='ocean_material').mask,'ocean');
 doc.render_options.textures_enabled=false;
 calls.length=0;render({},doc,[],{},1280,720);
 assert.equal(calls.length,0,'textures toggle continues to suppress all materials');
