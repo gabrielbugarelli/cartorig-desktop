@@ -1,4 +1,4 @@
-//go:build wails && !installer
+//go:build !installer
 
 package main
 
