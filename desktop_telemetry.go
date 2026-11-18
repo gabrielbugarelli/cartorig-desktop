@@ -38,6 +38,11 @@ type previewDiagnostics struct {
     TexturePreparedCalls uint64 `json:"texturePreparedCalls"`
     TextureRasterCopies uint64 `json:"textureRasterCopies"`
     TextureCulledCopies uint64 `json:"textureCulledCopies"`
+    StateDrawMs float64 `json:"stateDrawMs"`
+    StateCacheHits uint64 `json:"stateCacheHits"`
+    StateCacheMisses uint64 `json:"stateCacheMisses"`
+    StateDrawnCopies uint64 `json:"stateDrawnCopies"`
+    StateCulledCopies uint64 `json:"stateCulledCopies"`
 }
 var lastWebviewHeartbeat atomic.Int64
 var nativeWindowVisible atomic.Bool
@@ -50,7 +55,7 @@ func desktopReceiveHeartbeat(w http.ResponseWriter,r *http.Request){
     if err:=d.Decode(&info);err!=nil{http.Error(w,"Invalid diagnostics",http.StatusBadRequest);return}
     if len(info.Phase)>24{http.Error(w,"Invalid phase",http.StatusBadRequest);return}
     lastWebviewHeartbeat.Store(time.Now().UnixNano())
-    log.Printf("WEBVIEW_HEALTH phase=%q nativeVisible=%t docHidden=%t previewVisible=%t size=%.0fx%.0f renders=%d invalidations=%d resizes=%d skippedHidden=%d lastDrawMs=%.1f maxDrawMs=%.1f baseRenders=%d baseHits=%d baseDrawMs=%.1f previewPixels=%d texCacheHits=%d texCacheMisses=%d texCachePixels=%d texPrepareMs=%.1f texWorldMs=%.1f texMaterialsMs=%.1f texReliefMs=%.1f texRasterCalls=%d texPreparedCalls=%d texRasterCopies=%d texCulledCopies=%d framePending=%t",
+    log.Printf("WEBVIEW_HEALTH phase=%q nativeVisible=%t docHidden=%t previewVisible=%t size=%.0fx%.0f renders=%d invalidations=%d resizes=%d skippedHidden=%d lastDrawMs=%.1f maxDrawMs=%.1f baseRenders=%d baseHits=%d baseDrawMs=%.1f previewPixels=%d texCacheHits=%d texCacheMisses=%d texCachePixels=%d texPrepareMs=%.1f texWorldMs=%.1f texMaterialsMs=%.1f texReliefMs=%.1f texRasterCalls=%d texPreparedCalls=%d texRasterCopies=%d texCulledCopies=%d stateDrawMs=%.1f stateCacheHits=%d stateCacheMisses=%d stateCopies=%d stateCulled=%d framePending=%t",
         info.Phase,nativeWindowVisible.Load(),info.DocumentHidden,info.PreviewVisible,
         info.WebviewWidth,info.WebviewHeight,info.Renders,info.Invalidations,
         info.ResizeEvents,info.SkippedHidden,info.LastRenderMs,info.MaxRenderMs,
@@ -58,6 +63,7 @@ func desktopReceiveHeartbeat(w http.ResponseWriter,r *http.Request){
         info.TextureCacheHits,info.TextureCacheMisses,info.TextureCachePixels,info.TexturePrepareMs,
         info.TextureWorldMs,info.TextureMaterialMs,info.TextureReliefMs,
         info.TextureRasterCalls,info.TexturePreparedCalls,info.TextureRasterCopies,info.TextureCulledCopies,
+        info.StateDrawMs,info.StateCacheHits,info.StateCacheMisses,info.StateDrawnCopies,info.StateCulledCopies,
         info.FramePending)
     w.WriteHeader(http.StatusNoContent)
 }
