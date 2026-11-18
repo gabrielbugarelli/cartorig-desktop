@@ -52,8 +52,8 @@ with sync_playwright() as p:
       doc.theme.overrides.surface_material='none';doc.theme.overrides.surface_strength=0;
       doc.theme.overrides.cartographic_finish='ink_grain';doc.theme.overrides.finish_strength=1;
       const finish=sample(),fd=difference(plain,finish);
-      // Actual Atlas default: turning on textures should alter only land.
-      // The sea remains flat because ocean_material is 'none' by default.
+      // Atlas uses a fibrous-paper land pattern and a separate, quieter
+      // marine_waves pattern over the water. Each must change only its surface.
       const priorTheme=doc.theme,priorOptions=doc.render_options;
       doc.theme={id:'atlas',type_defaults:{},overrides:{}};
       doc.render_options={textures_enabled:false};
@@ -73,7 +73,7 @@ with sync_playwright() as p:
     assert r['od']['water']>2 and r['od']['land']<.01,r
     assert r['sd']['land']>0.5 and r['sd']['water']<.01,r
     assert r['fd']['land']>0.5 and r['fd']['water']<.01,r
-    assert r['atlasDiff']['land']>0.5 and r['atlasDiff']['water']<.01,r
+    assert r['atlasDiff']['land']>0.5 and r['atlasDiff']['water']>0.05,r
     assert r['overlaid'][:3]==[195,0,0] and r['overlaid'][3]==255,r
-    print('PASS: land-only paper/print / distinct ocean material / deterministic output / intact country overrides:',r)
+    print('PASS: independent land-paper and marine-water materials / deterministic output / intact region overrides:',r)
     browser.close()
