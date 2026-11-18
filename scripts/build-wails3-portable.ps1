@@ -54,6 +54,9 @@ try {
     # production executable; a broken release may no longer compile quietly.
     & go test -tags fullgeo ./...
     if ($LASTEXITCODE -ne 0) { throw 'Fullgeo release guard failed: refusing to build portable EXE' }
+    # Test the Natural Earth -99 collision using the actual bundled 110m map.
+    & node tests/test_country_id_collision.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Country identity regression failed' }
     if (-not $SkipTests) {
         & go test ./...
         if ($LASTEXITCODE -ne 0) { throw 'Legacy CartoRig tests failed' }

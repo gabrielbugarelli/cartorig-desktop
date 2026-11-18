@@ -5,6 +5,7 @@ import {routeSamples} from './creative-engine.js';
 import {treeIds,isVisible} from './scene-core.js';
 import {layoutMapLabels} from './map-labels.js';
 import {paletteFor} from './style-resolver.js';
+import {countryForRegion} from './geo-catalog.js';
 export const escapeXML = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 function n(x){return Number.isFinite(Number(x))?Number(x).toFixed(3):'0';}
 function segments(doc,pts,w,h,close=false){if(!pts?.length)return '';let p='',prev=null;for(let k=0;k<pts.length;k++){
@@ -14,7 +15,7 @@ function segments(doc,pts,w,h,close=false){if(!pts?.length)return '';let p='',pr
  }return p+(close?'Z':'');}
 function shapePaths(doc,geometry,w,h){if(!geometry)return '';const parts=geometry.type==='Polygon'?[geometry.coordinates]:geometry.type==='MultiPolygon'?geometry.coordinates:[];return parts.map(poly=>poly.map(ring=>segments(doc,ring,w,h,true)).join(' ')).join(' ');}
 function style(obj){let s=obj.style||{};return ` fill="${escapeXML(s.fill_color||'none')}" fill-opacity="${n(s.fill_opacity??1)}" stroke="${escapeXML(s.stroke_color||'none')}" stroke-width="${n(s.stroke_width??0)}" opacity="${n(obj.opacity??1)}"`;}
-function targetGeometry(obj,countries,geo){if(obj.embedded_geometry)return obj.embedded_geometry;const id=obj.source?.feature_id;if(obj.region_kind==='Country')return geo?.getCountriesForDraw?.(1)?.find(x=>x.iso===id)?.geometry||countries.find(c=>c.iso===id)?.geometry; if(obj.region_kind==='Continent')return geo?.continents?.[id];return geo?.lookup?.(obj.source?.dataset_id,id)?.geometry;}
+function targetGeometry(obj,countries,geo){if(obj.embedded_geometry)return obj.embedded_geometry;const id=obj.source?.feature_id;if(obj.region_kind==='Country')return countryForRegion(obj,countries,geo,1)?.geometry||null; if(obj.region_kind==='Continent')return geo?.continents?.[id];return geo?.lookup?.(obj.source?.dataset_id,id)?.geometry;}
 export function serializeVectorScene(doc,countries,geo,w,h,{onlyIds=null,labels=null,includeMapLabels=false}={}){
  let allowed=onlyIds?new Set(onlyIds):null,content=[],warnings=[];
  for(const id of treeIds(doc)) {const obj=doc.objects[id];if(!obj||obj.type==='Group'||!isVisible(doc,id)||(allowed&&!allowed.has(id)))continue;
