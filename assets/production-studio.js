@@ -239,12 +239,13 @@ export function setupProductionStudio({getDoc,getSelection,execute,getCountries,
    content.append(button);
   }
  }
- async function projects(){
-  setProjectManagerTab('projects');
+ async function projects(activeTab='projects'){
+  setProjectManagerTab(activeTab);
   $('prodRecent').textContent='Loading saved projects…';
   $('prodRecoveries').textContent='Loading recovery copies…';
-  openModal('productionProjects');
-  $('projTabProjects').focus();
+  if($('productionProjects').hidden)openModal('productionProjects');
+  const tab=projectTabs.find(([name])=>name===activeTab)||projectTabs[0];
+  $(tab[1]).focus();
   const outcomes=await Promise.allSettled([recentProjects(),renderRecoveries()]);
   if(outcomes[0].status==='rejected'){
    $('prodRecent').textContent='Could not load saved projects.';
@@ -395,7 +396,7 @@ export function setupProductionStudio({getDoc,getSelection,execute,getCountries,
   bindRecoveryActions();
  bindProjectManagerTabs();
  $('openProduction').onclick=openExport;$('prodClose').onclick=()=>closeModal('productionExport');$('prodRun').onclick=()=>void exportPackage();$('prodCancelExport').onclick=()=>void cancelExport();$('prodSavePreset').onclick=saveExportPreset;$('prodApplyPreset').onclick=applyExportPreset;$('prodDeletePreset').onclick=deleteExportPreset;
-  $('openProjects').onclick=()=>void projects().catch(e=>notify(e.message,true));$('prodProjectsClose').onclick=()=>closeModal('productionProjects');$('prodSave').onclick=()=>void saveProject().then(()=>recentProjects()).catch(e=>notify('Save failed: '+e.message,true));$('prodSaveAs').onclick=()=>void saveProject({downloadFile:true}).then(()=>recentProjects()).catch(e=>notify('Save As failed: '+e.message,true));$('prodSaveTemplate').onclick=()=>void json('/api/v2/project/template',projectDoc()).then(()=>{notify('Project saved as reusable template');return projects();}).catch(e=>notify('Template save failed: '+e.message,true));
+  $('openProjects').onclick=()=>void projects().catch(e=>notify(e.message,true));$('prodProjectsClose').onclick=()=>closeModal('productionProjects');$('prodSave').onclick=()=>void saveProject().then(()=>recentProjects()).catch(e=>notify('Save failed: '+e.message,true));$('prodSaveAs').onclick=()=>void saveProject({downloadFile:true}).then(()=>recentProjects()).catch(e=>notify('Save As failed: '+e.message,true));$('prodSaveTemplate').onclick=()=>void json('/api/v2/project/template',projectDoc()).then(()=>{notify('Project saved as reusable template');return projects('templates');}).catch(e=>notify('Template save failed: '+e.message,true));
   for(let id of ['prodScope','prodFormat','prodGranularity','prodResolution','prodMaskOpaque','prodTransparent','prodIncludeBackground','prodUseTiles'])$(id).addEventListener('change',showPreflight);
  }
  bind();
