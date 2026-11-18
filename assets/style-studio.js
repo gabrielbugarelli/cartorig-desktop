@@ -205,8 +205,17 @@ export function setupStyleStudio({getDoc,getSelection=()=>[],exec,toast,download
   textureInput.checked=texturesEnabled(doc);
   textureInput.onchange=()=>exec({type:'SetTextureVisibility',enabled:textureInput.checked});
   textureToggle.append(textureInput,document.createTextNode('Show textures'));
-  controlsArea.append(textureToggle);
-  if(mapControls)controlsArea.append(mapControls);
+  // Both base-map options share one compact section. Preserve the original
+  // command handlers: textures remain project-level, boundaries remain a
+  // theme override. Replace the slot contents during each redraw so no
+  // duplicate checkbox is left behind after changing Looks or settings.
+  const textureSlot=mapControls?.querySelector('#uxMapTextureSlot');
+  if(textureSlot){
+   textureSlot.replaceChildren(textureToggle);
+   controlsArea.append(mapControls);
+  }else{
+   controlsArea.append(textureToggle);
+  }
   controlsArea.append(buildMapLabels(doc,palette));
   const priority=['BORDERS & GRID','LAND & OCEAN','ATMOSPHERE','DEFAULT TYPOGRAPHY'];
   const orderedGroups=[...priority.map(name=>groups.find(([heading])=>heading===name)),...groups.filter(([heading])=>!priority.includes(heading))].filter(Boolean);
