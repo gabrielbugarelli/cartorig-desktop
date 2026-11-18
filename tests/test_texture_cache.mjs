@@ -30,5 +30,23 @@ const rotated=visibleRasterShifts({width:1758,height:1114,k:1758/360,center_lon:
 assert.ok(rotated.includes(0));
 const minZoom=visibleRasterShifts({width:1758,height:1114,k:1758/360*.35,center_lon:0,center_lat:0,bearing:0});
 assert.ok(minZoom.length>=1&&minZoom.length<=3);
+// Regression: 10000 x 8000 rounds to 4,000,204 pixels with Math.round.
+// Three such filtered layers would thrash a 12 MP cache on every frame.
+const threeLayers=createFilteredTextureCache({createCanvas,maxPixels:4000000,budgetPixels:12000000,now:()=>++clock});
+const layers=Array.from({length:3},()=>({complete:true,naturalWidth:10000,naturalHeight:8000}));
+for(const [index,layer] of layers.entries()){
+ const bitmap=threeLayers.get(layer,'contrast('+(index+1)+')');
+ assert.ok(bitmap.width*bitmap.height<=4000000,'prepared texture must obey the exact pixel cap');
+}
+assert.equal(threeLayers.getStats().entries,3,'three atlas layers must fit together');
+assert.equal(threeLayers.getStats().evictions,0,'preview layers must not evict each other');
+for(const [index,layer] of layers.entries())assert.ok(threeLayers.get(layer,'contrast('+(index+1)+')'));
+assert.equal(threeLayers.getStats().hits,3,'redraw must reuse all three filtered layers');
+assert.equal(threeLayers.getStats().evictions,0,'redraw must not force cache churn');
+const tightBudget=createFilteredTextureCache({createCanvas,maxPixels:4000000,budgetPixels:1000000,now:()=>++clock});
+const tightBitmap=tightBudget.get(relief,grade);
+assert.ok(tightBitmap.width*tightBitmap.height<=1000000,'single texture must respect a smaller total budget');
+assert.ok(tightBudget.getStats().livePixels<=1000000);
+
 cache.clear();assert.equal(cache.getStats().livePixels,0);assert.equal(cache.getStats().entries,0);
 console.log('TEXTURE CACHE PASS: graded JPEG reused / bounded GPU memory / wrapped-image culling');
