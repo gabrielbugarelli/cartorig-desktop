@@ -55,8 +55,9 @@ function drawLandTextureClipped(ctx,doc,countries,images,img,w,h,alpha,filter){
  const visible=images._geo?.getCountriesForDraw(doc.camera.zoom)||countries;
  ctx.save();
  if(typeof Path2D==='function'){
-  const mask=new Path2D();for(const c of visible)for(const p of cachedPolygonPaths(doc,c.geometry,w,h)||[])mask.addPath(p);
-  ctx.clip(mask,'evenodd');ctx.globalAlpha*=alpha;ctx.filter=filter;raster(ctx,doc,img,w,h);
+  // Reuse the land mask already shared by shading and print materials.
+  const masks=materialMasks(doc,countries,images,w,h);
+  if(masks){ctx.clip(masks.land,'evenodd');ctx.globalAlpha*=alpha;ctx.filter=filter;raster(ctx,doc,img,w,h);}
  }else{ // Canvas without Path2D: transparent mask, no land shape may leak into sea
   const layer=document.createElement('canvas');layer.width=w;layer.height=h;
   const g=layer.getContext('2d');g.filter=filter;raster(g,doc,img,w,h);
@@ -243,9 +244,27 @@ export function renderScene(ctx,doc,countries,images,w,h,{onlyIds=null,preview=f
  // An atmosphere grade applies to the *final composite*. The alpha of empty
  // pixels must be preserved on transparent exports.
  if(!allowed){ctx.save();ctx.globalCompositeOperation='source-atop';applyAtmosphere(ctx,w,h,{atmosphere_vignette:themeValue(doc,'atmosphere_vignette'),atmosphere_tint:themeValue(doc,'atmosphere_tint'),atmosphere_tint_mix:themeValue(doc,'atmosphere_tint_mix')});ctx.restore();}
- if(preview){for(let id of selection){let o=doc.objects[id];if(!o||!isVisible(doc,id))continue;ctx.save();ctx.strokeStyle='#76bbff';ctx.lineWidth=2;ctx.setLineDash([5,4]);if(o.type==='Region'){let geom=findRegionGeometry(o,images._geo,byIso,doc.camera.zoom);if(geom)drawPolygon(ctx,doc,geom,w,h,false,true);}
- else if(['Label','Marker','Route','Shape'].includes(o.type)){for(let handle of creativeHandles(doc,o,w,h,project)){let [x,y]=handle.xy;ctx.fillStyle='#12344d';ctx.fillRect(x-5,y-5,10,10);ctx.strokeRect(x-6,y-6,12,12);}}ctx.restore();}}
+ if(preview)drawPreviewSelection(ctx,doc,countries,images,w,h,selection);
  } finally {ctx.restore();if(tile)setRenderTile(previous)}
+}
+// Selection handles are separate from the expensive atlas composition.
+export function drawPreviewSelection(ctx,doc,countries,images,w,h,selection=[]){
+ if(!selection.length)return;
+ const byIso=new Map(countries.map(c=>[c.iso,c]));
+ for(const id of selection){
+  const o=doc.objects[id];if(!o||!isVisible(doc,id))continue;
+  ctx.save();ctx.strokeStyle='#76bbff';ctx.lineWidth=2;ctx.setLineDash([5,4]);
+  if(o.type==='Region'){
+   const geom=findRegionGeometry(o,images._geo,byIso,doc.camera.zoom);
+   if(geom)drawPolygon(ctx,doc,geom,w,h,false,true);
+  }else if(['Label','Marker','Route','Shape'].includes(o.type)){
+   for(const handle of creativeHandles(doc,o,w,h,project)){
+    const [x,y]=handle.xy;ctx.fillStyle='#12344d';
+    ctx.fillRect(x-5,y-5,10,10);ctx.strokeRect(x-6,y-6,12,12);
+   }
+  }
+  ctx.restore();
+ }
 }
 export function renderMapLabelLayer(ctx,doc,images,w,h,{tile=null}={}){
  ctx.save();try{ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);if(tile)ctx.translate(-tile.x,-tile.y);

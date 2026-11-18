@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const render=read('assets/scene-renderer.js'),app=read('assets/app.js'),telemetry=read('desktop_telemetry.go');
+assert.match(render,/export function drawPreviewSelection\(/);
+assert.match(render,/if\(preview\)drawPreviewSelection\(/);
+assert.match(render,/const masks=materialMasks\(doc,countries,images,w,h\)/);
+assert.doesNotMatch(render,/const mask=new Path2D\(\);for\(const c of visible\)/);
+assert.match(app,/previewCache\.paint\(/);
+assert.match(app,/drawBase:surface=>renderScene\(surface,doc,countries,images,w,h,\{preview:false,soloId\}\)/);
+assert.match(app,/drawOverlay:surface=>drawPreviewSelection\(/);
+assert.match(app,/if\(dragPreview\)\{/);
+assert.match(app,/previewBackingScale\(cssW,cssH,devicePixelRatio\|\|1\)/);
+assert.match(telemetry,/BaseRenders uint64/);
+assert.match(telemetry,/BaseHits uint64/);
+console.log('PREVIEW INTEGRATION PASS: canvas cache / overlays / land mask / diagnostic metrics');

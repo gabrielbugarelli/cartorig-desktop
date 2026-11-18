@@ -23,6 +23,10 @@ type previewDiagnostics struct {
     DocumentHidden bool `json:"documentHidden"`
     WebviewWidth float64 `json:"webviewWidth"`
     WebviewHeight float64 `json:"webviewHeight"`
+    BaseRenders uint64 `json:"baseRenders"`
+    BaseHits uint64 `json:"baseHits"`
+    BaseDrawMs float64 `json:"baseDrawMs"`
+    PreviewPixels uint64 `json:"previewPixels"`
 }
 var lastWebviewHeartbeat atomic.Int64
 var nativeWindowVisible atomic.Bool
@@ -35,10 +39,11 @@ func desktopReceiveHeartbeat(w http.ResponseWriter,r *http.Request){
     if err:=d.Decode(&info);err!=nil{http.Error(w,"Invalid diagnostics",http.StatusBadRequest);return}
     if len(info.Phase)>24{http.Error(w,"Invalid phase",http.StatusBadRequest);return}
     lastWebviewHeartbeat.Store(time.Now().UnixNano())
-    log.Printf("WEBVIEW_HEALTH phase=%q nativeVisible=%t docHidden=%t previewVisible=%t size=%.0fx%.0f renders=%d invalidations=%d resizes=%d skippedHidden=%d lastDrawMs=%.1f maxDrawMs=%.1f framePending=%t",
+    log.Printf("WEBVIEW_HEALTH phase=%q nativeVisible=%t docHidden=%t previewVisible=%t size=%.0fx%.0f renders=%d invalidations=%d resizes=%d skippedHidden=%d lastDrawMs=%.1f maxDrawMs=%.1f baseRenders=%d baseHits=%d baseDrawMs=%.1f previewPixels=%d framePending=%t",
         info.Phase,nativeWindowVisible.Load(),info.DocumentHidden,info.PreviewVisible,
         info.WebviewWidth,info.WebviewHeight,info.Renders,info.Invalidations,
-        info.ResizeEvents,info.SkippedHidden,info.LastRenderMs,info.MaxRenderMs,info.FramePending)
+        info.ResizeEvents,info.SkippedHidden,info.LastRenderMs,info.MaxRenderMs,
+        info.BaseRenders,info.BaseHits,info.BaseDrawMs,info.PreviewPixels,info.FramePending)
     w.WriteHeader(http.StatusNoContent)
 }
 func monitorWebviewHealth(done <-chan struct{}){
