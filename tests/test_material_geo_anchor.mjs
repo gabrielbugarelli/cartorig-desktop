@@ -17,7 +17,11 @@ function worldPixel(lon,lat){
  return [(lon+180)/deg,(90-lat)/deg];
 }
 function matchMap(lon,lat){
- const [u,v]=worldPixel(lon,lat),got=use(transform(),u,v),want=project(doc,lon,lat,W,H);
+ // The renderer projects the geographically closest wrapped world copy.
+ // The pattern is 360-degree periodic, so that copy has the same texture.
+ const delta=lon-doc.camera.center_lon;
+ const shifted=doc.camera.center_lon+((delta+180)%360+360)%360-180;
+ const [u,v]=worldPixel(shifted,lat),got=use(transform(),u,v),want=project(doc,lon,lat,W,H);
  close(got[0],want[0]);close(got[1],want[1]);
 }
 assert.equal(MATERIAL_TILE_LONGITUDE_DEGREES,90);
