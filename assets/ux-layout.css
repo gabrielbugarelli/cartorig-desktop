@@ -192,9 +192,15 @@ button:disabled{cursor:not-allowed}
 .ux-geo-import[open]{margin-bottom:7px}
 .ux-settings-divider{font-size:10px;letter-spacing:1.15px;font-weight:750;color:#94b9d0;padding:9px 3px 4px;border-bottom:1px solid #365064}
 .ux-artistic-divider{margin-top:8px;color:#a2afbe;border-color:#304457}
-.ux-map-boundaries{margin:0;border:1px solid #334e62}
-.ux-map-boundaries-content{display:flex;flex-direction:column;gap:11px;padding:4px 1px 7px}
-.ux-map-boundaries .check{margin:0}
+.ux-map-display{display:flex;flex-direction:column;gap:9px;border:1px solid #334e62;background:#192a38;border-radius:8px;padding:11px}
+.ux-map-display h3{margin:0;color:#b4cadc;font-size:11px;font-weight:700;letter-spacing:.55px}
+.ux-map-boundaries-content{display:flex;flex-direction:column;gap:8px}
+.ux-map-display .check{display:flex;flex-direction:row;align-items:flex-start;gap:9px;margin:0;min-height:30px;color:#d8e9f4;font-size:12px;line-height:1.4;cursor:pointer}
+.ux-map-display .check input{width:16px;height:16px;flex:0 0 16px;margin:2px 0 0;accent-color:#77b7e9}
+.ux-map-display .check span{display:block;min-width:0}
+.ux-map-display .check small{display:block;font-size:11px;line-height:1.35;color:#99b4c8;margin-top:2px}
+#uxMapTextureSlot:empty{display:none}
+#geoPhysicalGroup[hidden]{display:none!important}
 .ux-field-subhead{font-size:10px;letter-spacing:.9px;font-weight:700;color:#8baabd;margin:4px 0 0}
 .ux-export-default-grid{display:flex;flex-direction:column;gap:10px;padding:2px 0 12px}
 .ux-export-default-grid .field-label{display:flex;flex-direction:column;gap:7px;font-size:12px}
