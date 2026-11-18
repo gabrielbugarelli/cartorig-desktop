@@ -9,6 +9,26 @@ try {
     if ($goVersion -notmatch '^go1\.(\d+)' -or [int]$Matches[1] -lt 26) {
         throw 'CartoRig Wails 3 requires Go 1.26 or later'
     }
+    # Git on Windows may check out JS sources with CRLF; preview fingerprints are LF.
+    # Only normalize when the resulting content matches the manifest's hash.
+    $manifest = Get-Content -Raw 'assets/look-previews/manifest.json' | ConvertFrom-Json
+    foreach ($entry in $manifest.sources.PSObject.Properties) {
+        $path = Join-Path 'assets' $entry.Name
+        $actual = (Get-FileHash $path -Algorithm SHA256).Hash.ToLowerInvariant()
+        $expected = [string]$entry.Value
+        if ($actual -eq $expected) { continue }
+        $raw = [System.IO.File]::ReadAllBytes((Resolve-Path $path))
+        $text = [System.Text.Encoding]::UTF8.GetString($raw)
+        $lf = $text.Replace([Environment]::NewLine, [string][char]10)
+        $utf8 = [System.Text.UTF8Encoding]::new($false)
+        $converted = $utf8.GetBytes($lf)
+        $checksum = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($converted)).ToLowerInvariant()
+        if ($checksum -ne $expected) {
+            throw "Preview source hash mismatch (not newline-related): $path"
+        }
+        [System.IO.File]::WriteAllBytes((Resolve-Path $path), $converted)
+        Write-Host "Restored LF line endings: $path"
+    }
     if (-not $SkipTests) {
         & go test ./...
         if ($LASTEXITCODE -ne 0) { throw 'Legacy CartoRig tests failed' }
