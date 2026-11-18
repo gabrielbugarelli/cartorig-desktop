@@ -61,6 +61,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Workspace reset regression failed' }
     & node tests/test_desktop_native.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Desktop lifecycle regression failed' }
+    & node tests/test_preview_lifecycle.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Preview lifecycle regression failed' }
     if (-not $SkipTests) {
         & go test ./...
         if ($LASTEXITCODE -ne 0) { throw 'Legacy CartoRig tests failed' }

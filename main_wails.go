@@ -31,6 +31,22 @@ func main() {
     var app *application.App
     var window *application.WebviewWindow
     var shuttingDown atomic.Bool
+    // Deliver native visibility to the Canvas scheduler; no document reload.
+    // Wails may keep document.hidden false while the HWND is hidden.
+    sendVisibility:=func(visible bool){
+        if window==nil{return}
+        if visible{
+            window.ExecJS("window.dispatchEvent(new CustomEvent('cartorig-desktop-visibility',{detail:{visible:true}}))")
+        }else{
+            window.ExecJS("window.dispatchEvent(new CustomEvent('cartorig-desktop-visibility',{detail:{visible:false}}))")
+        }
+    }
+    restoreWindow:=func(){
+        if window==nil{return}
+        window.Show()
+        sendVisibility(true)
+        window.Focus()
+    }
     api:=newMux()
     log.Printf("CartoRig API registered")
     app=application.New(application.Options{
@@ -41,7 +57,7 @@ func main() {
             UniqueID:"com.cartorig.desktop",
             OnSecondInstanceLaunch:func(_ application.SecondInstanceData){
                 log.Printf("Second instance: restoring CartoRig window")
-                application.InvokeSync(func(){if window!=nil{window.Show().Focus()}})
+                application.InvokeSync(restoreWindow)
             },
         },
         ErrorHandler:func(err error){if err!=nil{log.Printf("Wails internal error: %v",err);syncDesktopLog()}},
@@ -72,6 +88,7 @@ func main() {
     window.RegisterHook(events.Common.WindowClosing,func(e *application.WindowEvent){
         if shuttingDown.Load(){return}
         e.Cancel()
+        sendVisibility(false)
         window.Hide()
         log.Printf("Window hidden to Windows notification area")
     })
@@ -81,7 +98,7 @@ func main() {
     tray.SetIcon(cartorigIcon)
     tray.SetLabel("CartoRig")
     menu:=app.NewMenu()
-    menu.Add("Abrir CartoRig").OnClick(func(_ *application.Context){window.Show().Focus()})
+    menu.Add("Abrir CartoRig").OnClick(func(_ *application.Context){restoreWindow()})
     menu.AddSeparator()
     menu.Add("Fechar CartoRig").OnClick(func(_ *application.Context){
         shuttingDown.Store(true)

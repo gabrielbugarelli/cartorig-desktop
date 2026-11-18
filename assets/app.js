@@ -2,7 +2,8 @@ import {MATERIAL_IDS} from './look-materials.js';
 import {setupNavigation} from './navigation-ui.js';
 /* CartoRig M0/M1 — three-pane editing UI. No animation engine. MIT. */
 import {SceneStore,newDocument,migrateLegacy,validateDocument,madeObject,uuid,treeIds,isVisible,isLocked,normalizeSelection,clamp,clone} from './scene-core.js';
-import {renderScene,renderMapLabelLayer,project,unproject,scaleFor,hitTest,hitTestCandidates,boundsOf,pointInside} from './scene-renderer.js';
+import {renderScene,renderMapLabelLayer,project,unproject,scaleFor,hitTest,hitTestCandidates,boundsOf,pointInside,polygonCacheStats} from './scene-renderer.js';
+import {createPreviewScheduler} from './preview-scheduler.js';
 import {setupProductionStudio} from './production-studio.js';
 import {GeoCatalog,geoNormalize,geoDisplayName,geoDisplayParent,featureBounds,featureFocusBounds,normalizeCountryIds,countryForRegion} from './geo-catalog.js';
 import {SHAPES,ROUTE_TYPES,MARKER_SYMBOLS,sanitizeSVG,pointValid,resolveLink} from './creative-engine.js';
@@ -21,14 +22,15 @@ let creativeDraft=null,creativeCursor=null,editHandles=false,editOffset=false,in
 let lastSavedFileName=null,sessionToken="",geo=null,worldAdminState="checking",worldCitiesState="checking",worldAdminCount=0,appReady=false,worldAdminHealth=null,worldCitiesHealth=null,verifiedGeoHealth=null;
 const GEO_RESULTS_PAGE=20, GEO_SEARCH_DELAY_MS=180;
 let geoSearchOffset=0,geoSearchTimer=null;
-window.CartoRig={get ready(){return appReady},get scene(){return clone(store.doc)},get selection(){return [...store.selection]}, get history(){return {undo:store.undoStack.length,redo:store.redoStack.length}},execute:cmd=>exec(cmd),get countryCount(){return countries.length},get geoCatalog(){return geo},get geoDatasets(){return geo?.dataStatus()||[]},get geoIntegrity(){return verifiedGeoHealth},get creativeDraft(){return clone(creativeDraft)},setTool:name=>setTool(name)};
+window.CartoRig={get ready(){return appReady},get scene(){return clone(store.doc)},get selection(){return [...store.selection]}, get history(){return {undo:store.undoStack.length,redo:store.redoStack.length}},execute:cmd=>exec(cmd),get countryCount(){return countries.length},get geoCatalog(){return geo},get geoDatasets(){return geo?.dataStatus()||[]},get geoIntegrity(){return verifiedGeoHealth},get creativeDraft(){return clone(creativeDraft)},setTool:name=>setTool(name),
+ get performance(){return {preview:previewScheduler.getStats(),polygonCache:{hits:polygonCacheStats.hits,misses:polygonCacheStats.misses},heap:performance.memory?{usedJSHeapSize:performance.memory.usedJSHeapSize,totalJSHeapSize:performance.memory.totalJSHeapSize}:null}}};
 function showToast(s,error=false){let el=$('toast');el.textContent=s;el.hidden=false;el.classList.toggle('error',error);clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.hidden=true,4000);}
 function status(s){$('status').textContent=s;}
 function scheduleCache(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>{try{localStorage.setItem(currentKey,JSON.stringify(store.doc));}catch(e){status('Local recovery cache unavailable');}},350);}
 // Native Scene Looks use immutable, version-locked PNGs embedded in the binary.
 // All gallery thumbnail presentation is owned by style-studio.js; app.js never
 // draws, substitutes or re-encodes Scene Looks during startup or theme changes.
-function stateChanged(type){if(type==='change'){scheduleCache();if(appReady)production.scheduleAutosave();}syncUI();}
+function stateChanged(type){if(type==='change'){scheduleCache();if(appReady)production.scheduleAutosave();}syncUI(type);}
 store.onChange=stateChanged;
 const styleStudio=setupStyleStudio({getDoc:()=>store.doc,getSelection:()=>store.selection,exec,toast:showToast,downloadable,getToken:()=>sessionToken});
 const production=setupProductionStudio({getDoc:()=>store.doc,getSelection:()=>store.selection,execute:cmd=>exec(cmd),getCountries:()=>countries,getImages:()=>images,getToken:()=>sessionToken,replaceDoc:d=>{store.replace(d);setTab('layers')},render:renderScene,settle:settleCreativeAssets,download:downloadable,notify:showToast,status,markSaved:()=>store.markSaved()});
@@ -325,12 +327,32 @@ function renderInspector(){let root=$('inspector');root.replaceChildren();let id
  }
  
 }
-function syncUI(){const d=store.doc;let inp=$('projectName');if(document.activeElement!==inp)inp.value=d.name;$('dirtyState').textContent=store.dirty?'Unsaved changes':'Saved';$('dirtyState').classList.toggle('dirty',store.dirty);$('undo').disabled=!store.undoStack.length;$('redo').disabled=!store.redoStack.length;$('zoomValue').textContent=Math.round(d.camera.zoom*100)+'%';$('selectionCount').textContent=store.selection.length>1?store.selection.length+' selected':'';$('resolution').value=d.canvas.width+'x'+d.canvas.height;$('transparent').checked=d.canvas.transparent;document.querySelectorAll('[data-style]').forEach(b=>b.classList.toggle('active',b.dataset.style===d.theme.id));$('duplicate').disabled=store.selection.length!==1;$('delete').disabled=!store.selection.length;$('ungroup').disabled=store.selection.length!==1||d.objects[store.selection[0]]?.type!=='Group';$('ungroup').hidden=$('ungroup').disabled;renderTree();renderInspector();styleStudio.sync();drawPreview();geoStatus();}
+function syncUI(reason='change'){const d=store.doc;let inp=$('projectName');if(document.activeElement!==inp)inp.value=d.name;$('dirtyState').textContent=store.dirty?'Unsaved changes':'Saved';$('dirtyState').classList.toggle('dirty',store.dirty);$('undo').disabled=!store.undoStack.length;$('redo').disabled=!store.redoStack.length;$('zoomValue').textContent=Math.round(d.camera.zoom*100)+'%';$('selectionCount').textContent=store.selection.length>1?store.selection.length+' selected':'';$('resolution').value=d.canvas.width+'x'+d.canvas.height;$('transparent').checked=d.canvas.transparent;document.querySelectorAll('[data-style]').forEach(b=>b.classList.toggle('active',b.dataset.style===d.theme.id));$('duplicate').disabled=store.selection.length!==1;$('delete').disabled=!store.selection.length;$('ungroup').disabled=store.selection.length!==1||d.objects[store.selection[0]]?.type!=='Group';$('ungroup').hidden=$('ungroup').disabled;renderTree();renderInspector();styleStudio.sync();if(reason!=='saved')drawPreview();geoStatus();}
 function fitCountry(iso){let c=byIso.get(iso);if(!c)return;fitBounds(boundsOf(c));}
 function fitBounds(bb){if(!Number.isFinite(bb.minx))return;let w=previewW||1280,h=previewH||720,k=Math.min(w/360,h/180),dx=Math.max(10,bb.maxx-bb.minx),dy=Math.max(7,bb.maxy-bb.miny),bearing=(store.doc.camera.bearing||0)*Math.PI/180,cs=Math.abs(Math.cos(bearing)),sn=Math.abs(Math.sin(bearing)),rotW=dx*cs+dy*sn,rotH=dx*sn+dy*cs;exec({type:'SetCameraPose',pose:{center_lon:((bb.minx+bb.maxx)/2+540)%360-180,center_lat:(bb.miny+bb.maxy)/2,zoom:clamp(Math.min(w*.77/rotW,h*.77/rotH)/k,.8,70)}});}
 function fitSelection(){let box={minx:Infinity,miny:Infinity,maxx:-Infinity,maxy:-Infinity};for(let id of store.selection){let o=store.doc.objects[id],c=o?.embedded_geometry?{geometry:o.embedded_geometry}:o?.region_kind==='Continent'?{geometry:geo?.continents?.[o.source?.feature_id]}:o?.region_kind==='Country'?countryForRegion(o,countries,geo,store.doc.camera.zoom):geo?.lookup(o?.source?.dataset_id,o?.source?.feature_id);if(c?.geometry){let b=boundsOf(c);box.minx=Math.min(box.minx,b.minx);box.miny=Math.min(box.miny,b.miny);box.maxx=Math.max(box.maxx,b.maxx);box.maxy=Math.max(box.maxy,b.maxy);}else for(let pt of [o?.anchor,o?.from,o?.to])if(pt&&Number.isFinite(pt.lon)&&Number.isFinite(pt.lat)){box.minx=Math.min(box.minx,pt.lon);box.maxx=Math.max(box.maxx,pt.lon);box.miny=Math.min(box.miny,pt.lat);box.maxy=Math.max(box.maxy,pt.lat);}}if(Number.isFinite(box.minx))fitBounds(box);else showToast('No geographical bounds for selection',true);}
+// In the Wails build, visibility is delivered by the native tray lifecycle.
+// In a browser, document.visibilitychange supplies the equivalent signal.
+let nativeWindowVisible=true;
+const previewScheduler=createPreviewScheduler({
+ draw:renderPreviewNow,
+ measure:()=>{const box=wrap.getBoundingClientRect();return {width:box.width,height:box.height};},
+ requestFrame:callback=>requestAnimationFrame(callback),
+ cancelFrame:id=>cancelAnimationFrame(id),
+ now:()=>performance.now(),
+ initiallyVisible:!document.hidden
+});
+function drawPreview(){previewScheduler.invalidate();}
+function updatePreviewVisibility(){
+ previewScheduler.setVisible(nativeWindowVisible&&!document.hidden);
+}
+window.addEventListener('cartorig-desktop-visibility',event=>{
+ nativeWindowVisible=event.detail?.visible!==false;
+ updatePreviewVisibility();
+});
+document.addEventListener('visibilitychange',updatePreviewVisibility);
 function updateCanvasSize(){let box=wrap.getBoundingClientRect(),ratio=store.doc.canvas.width/store.doc.canvas.height;let cssW=Math.max(100,Math.min(box.width-34,(box.height-34)*ratio)),cssH=cssW/ratio,pxratio=Math.min(devicePixelRatio||1,2);previewW=cssW;previewH=cssH;canvas.style.width=cssW+'px';canvas.style.height=cssH+'px';let w=Math.max(100,Math.round(cssW*pxratio)),h=Math.max(100,Math.round(cssH*pxratio));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}return {w,h};}
-function drawPreview(){if(!countries.length)return;let {w,h}=updateCanvasSize();let doc=store.doc;if(dragPreview){doc=clone(doc);if(dragPreview.camera)doc.camera={...doc.camera,...dragPreview.camera};if(dragPreview.anchor){let o=doc.objects[dragPreview.id];if(o)o.anchor=dragPreview.anchor;}if(dragPreview.object)doc.objects[dragPreview.id]=dragPreview.object;}
+function renderPreviewNow(){if(!countries.length)return;let {w,h}=updateCanvasSize();let doc=store.doc;if(dragPreview){doc=clone(doc);if(dragPreview.camera)doc.camera={...doc.camera,...dragPreview.camera};if(dragPreview.anchor){let o=doc.objects[dragPreview.id];if(o)o.anchor=dragPreview.anchor;}if(dragPreview.object)doc.objects[dragPreview.id]=dragPreview.object;}
  renderScene(ctx,doc,countries,images,w,h,{preview:true,selection:store.selection,soloId});
  if(creativeDraft?.points?.length){const draft=creativePreviewObject(doc);if(draft){ctx.save();ctx.globalAlpha=.7;drawCreative(ctx,doc,draft,w,h,project);ctx.restore();}}
  if(doc.canvas.transparent){ctx.save();ctx.globalCompositeOperation='destination-over';ctx.fillStyle='#202e3d';ctx.fillRect(0,0,w,h);ctx.fillStyle='#15212c';let tile=24;for(let y=0;y<h;y+=tile*2)for(let x=0;x<w;x+=tile*2){ctx.fillRect(x,y,tile,tile);ctx.fillRect(x+tile,y+tile,tile,tile);}ctx.restore();}$('previewSize').textContent=w+' × '+h;}
@@ -487,6 +509,6 @@ async function init(){
  void Promise.allSettled(materialLoads).then(()=>drawPreview());
  for(let t of ['bmng','etopo1','shadedrelief']){let im=new Image();im.src='/assets/'+t+'.jpg';im.onload=()=>{drawPreview();};images[t]=im;}
  let existing=null;try{let raw=localStorage.getItem(currentKey);if(raw){existing=JSON.parse(raw);validateDocument(existing);}else{let legacy=JSON.parse(localStorage.getItem(legacyKey)||'null');if(legacy?.version===1)existing=migrateLegacy(legacy);}}catch(e){console.warn('Recovery cache invalid:',e);existing=null;}if(existing){store.replace(existing);status('Recovered previous composition');}else store.replace(newDocument());
- updateCountryFilter();renderCountryList();setTab('layers');setRightTab('styles');syncUI();appReady=true;document.getElementById('app').classList.remove('loading');void production.recoveryCheck();new ResizeObserver(drawPreview).observe(wrap);void Promise.all([ensureWorldAdmin1(),ensureWorldCities()]);
+ updateCountryFilter();renderCountryList();setTab('layers');setRightTab('styles');syncUI();appReady=true;document.getElementById('app').classList.remove('loading');void production.recoveryCheck();new ResizeObserver(()=>previewScheduler.onResize()).observe(wrap);void Promise.all([ensureWorldAdmin1(),ensureWorldCities()]);
 }
 init();
