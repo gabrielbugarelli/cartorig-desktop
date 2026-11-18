@@ -282,14 +282,11 @@ export function renderScene(ctx,doc,countries,images,w,h,{onlyIds=null,preview=f
    drawObject(target,doc,o,byIso,countries,images,w,h);
   }
  }}
- // Structural map layers are always first and cannot be moved; name overlays
- // sit above cartography but below user-authored routes, markers and labels.
- const roots=doc.scene.root_ids;
- let overlayAt=roots.findIndex(id=>!['WorldMap','Grid','Borders'].includes(doc.objects[id]?.type));
- if(overlayAt<0)overlayAt=roots.length;
- drawList(roots.slice(0,overlayAt),ctx);
+ // Preserve the user's scene stacking order, including group effects.
+ // Cartographic place names are a dedicated annotation overlay: painting
+ // them before user-defined regions lets opaque country fills hide the text.
+ drawList(doc.scene.root_ids,ctx);
  if((!allowed||includeMapLabels)&&!soloId)paintMapLabels(ctx,doc,images._labels,w,h,project,paletteFor(doc));
- drawList(roots.slice(overlayAt),ctx);
  // An atmosphere grade applies to the *final composite*. The alpha of empty
  // pixels must be preserved on transparent exports.
  if(!allowed){ctx.save();ctx.globalCompositeOperation='source-atop';applyAtmosphere(ctx,w,h,{atmosphere_vignette:themeValue(doc,'atmosphere_vignette'),atmosphere_tint:themeValue(doc,'atmosphere_tint'),atmosphere_tint_mix:themeValue(doc,'atmosphere_tint_mix')});ctx.restore();}
