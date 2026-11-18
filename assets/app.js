@@ -2,7 +2,7 @@ import {MATERIAL_IDS} from './look-materials.js';
 import {setupNavigation} from './navigation-ui.js';
 /* CartoRig M0/M1 — three-pane editing UI. No animation engine. MIT. */
 import {SceneStore,newDocument,migrateLegacy,validateDocument,madeObject,uuid,treeIds,isVisible,isLocked,normalizeSelection,clamp,clone} from './scene-core.js';
-import {renderScene,renderMapLabelLayer,drawPreviewSelection,project,unproject,scaleFor,hitTest,hitTestCandidates,boundsOf,pointInside,polygonCacheStats,previewTextureStats,textureRenderStats} from './scene-renderer.js';
+import {renderScene,renderMapLabelLayer,drawPreviewSelection,project,unproject,scaleFor,hitTest,hitTestCandidates,boundsOf,pointInside,polygonCacheStats,previewTextureStats,textureRenderStats,stateBoundaryStats} from './scene-renderer.js';
 import {createPreviewCache,previewBackingScale} from './preview-cache.js';
 import {createPreviewScheduler} from './preview-scheduler.js';
 import {setupProductionStudio} from './production-studio.js';
@@ -361,7 +361,7 @@ document.addEventListener('visibilitychange',updatePreviewVisibility);
 let desktopHealthPending=false,desktopHealthTimer=null;
 function sendDesktopHealth(phase='periodic'){
  if(!sessionToken||location.hostname!=='wails.localhost'||desktopHealthPending)return;
- const metrics=previewScheduler.getStats(),composition=previewCache.getStats(),textures=previewTextureStats(),texturePass=textureRenderStats;const bounds=wrap.getBoundingClientRect();
+ const metrics=previewScheduler.getStats(),composition=previewCache.getStats(),textures=previewTextureStats(),texturePass=textureRenderStats,states=stateBoundaryStats();const bounds=wrap.getBoundingClientRect();
  const body={phase,renders:metrics.renders,invalidations:metrics.invalidations,
  resizeEvents:metrics.resizeEvents,skippedHidden:metrics.skippedHidden,
  lastRenderMs:metrics.lastRenderMs,maxRenderMs:metrics.maxRenderMs,
@@ -372,6 +372,8 @@ function sendDesktopHealth(phase='periodic'){
  textureMaterialMs:texturePass.lastMaterialsMs,textureReliefMs:texturePass.lastReliefMs,
  textureRasterCalls:texturePass.filteredRasterCalls,texturePreparedCalls:texturePass.preparedRasterCalls,
  textureRasterCopies:texturePass.rasterCopies,textureCulledCopies:texturePass.culledCopies,
+ stateDrawMs:states.lastDrawMs,stateCacheHits:states.hits,stateCacheMisses:states.misses,
+ stateDrawnCopies:states.lastCopies,stateCulledCopies:states.lastCulled,
  previewVisible:metrics.visible,
  documentHidden:document.hidden,webviewWidth:bounds.width,webviewHeight:bounds.height};
  desktopHealthPending=true;
