@@ -8,6 +8,7 @@ import {countryForRegion} from './geo-catalog.js';
 import {createFilteredTextureCache,visibleRasterShifts} from './texture-cache.js';
 import {createStateBoundaryPreview} from './state-boundaries.js';
 import {materialPatternTransform} from './material-projection.js';
+import {isMaterialForSurface} from './look-materials.js';
 const rad=Math.PI/180;
 const preparedTextureCache=createFilteredTextureCache();
 const stateBoundaryPreview=createStateBoundaryPreview();
@@ -143,7 +144,12 @@ function materialMasks(doc,countries,images,w,h){
  const masks={land,ocean};materialMaskCache.set(doc,{signature,length:source.length,first:source[0]?.geometry,last:source.at(-1)?.geometry,geo:images._geo,datasetCount:images._geo?.datasets?.size||0,masks});return masks;
 }
 function paintMaterial(ctx,images,doc,key,strengthKey,mask,w,h,masks){
- const image=materialImage(images,themeValue(doc,key));
+ const name=themeValue(doc,key);
+ // Enforce the geographic category at draw time, too. Older documents can
+ // contain a paper material in an ocean override (or vice versa); preserve
+ // their data without accidentally painting it on the wrong surface.
+ if(!isMaterialForSurface(name,mask))return;
+ const image=materialImage(images,name);
  const strength=themeValue(doc,strengthKey);
  if(!image?.naturalWidth||!(strength>0))return;
  const material=materialPattern(ctx,image,doc,w,h);if(!material)return;
@@ -175,10 +181,10 @@ function paintSceneMaterials(ctx,doc,countries,images,w,h){
  if(!texturesEnabled(doc))return;
  const started=textureNow();
  const masks=materialMasks(doc,countries,images,w,h);
- // Paper/print surfaces are terrestrial materials, not water. Mask them
- // with the actual coastlines to prevent the same paper grain from covering
- // the ocean. Water receives ONLY its own ocean_material pattern. Preserve
- // geographic transforms, memoized paths and the original atlas recipes.
+ // Land support, land grain, and land print finishes use the land mask.
+ // Ocean patterns use the complementary water mask. Both material classes
+ // are geographically anchored, independently chosen and independently
+ // adjustable; neither can paint the other region.
  paintMaterial(ctx,images,doc,'surface_material','surface_strength','land',w,h,masks);
  paintMaterial(ctx,images,doc,'ocean_material','ocean_material_strength','ocean',w,h,masks);
  paintMaterial(ctx,images,doc,'land_material','land_material_strength','land',w,h,masks);
