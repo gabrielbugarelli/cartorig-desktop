@@ -73,6 +73,7 @@ export function setupProductionStudio({getDoc,getSelection,execute,getCountries,
    const items=await listRecoveries(),trigger=$('openProjects');
    trigger.textContent=items.length?'Projects & recovery · '+items.length:'Projects & recovery';
    trigger.title=items.length?items.length+' autosave(s) available':'Saved projects and recovery';
+   const badge=$('projRecoveryCount');if(badge){badge.textContent=String(items.length);badge.hidden=!items.length;}
   }catch(e){console.warn('Recovery status unavailable',e);}
  }
  function syncRecoveryControls(){
@@ -98,6 +99,9 @@ export function setupProductionStudio({getDoc,getSelection,execute,getCountries,
   recoverySelected=new Set([...recoverySelected].filter(id=>available.has(id)));
   host.replaceChildren();
   section.hidden=!items.length;
+  $('prodRecoveryEmpty').hidden=!!items.length;
+  const badge=$('projRecoveryCount');
+  badge.textContent=String(items.length);badge.hidden=!items.length;
   for(const item of items){
    const row=document.createElement('div');
    row.className='prod-recovery-row';
@@ -176,14 +180,112 @@ export function setupProductionStudio({getDoc,getSelection,execute,getCountries,
   $('prodRecoveryDelete').onclick=()=>void deleteRecoveries(false);
   $('prodRecoveryDeleteAll').onclick=()=>void deleteRecoveries(true);
  }
- async function recentProjects(){let list=await (await api('/api/v2/project/recent')).json();let content=$('prodRecent');content.replaceChildren();if(!list.length){content.textContent='No saved projects yet.';return};for(let x of list){let b=document.createElement('button');b.className='prod-recent';b.textContent=x.name+'  ·  Revision '+x.revision+'  ·  '+x.modified;b.onclick=async()=>{try{if(getDoc()&&confirm('Open saved project? Unsaved changes in the current scene will be discarded.')===false)return;let data=await (await api('/api/v2/project/load?id='+encodeURIComponent(x.id))).json();replaceDoc(data);savedProjectId=x.id;closeModal('productionProjects');notify('Opened '+x.name)}catch(e){notify('Cannot open recent project: '+e.message,true)}};content.append(b)}}
- async function projects(){
-    await recentProjects();await renderRecoveries();const builtins=$('prodTemplates');builtins.replaceChildren();
-    for(const t of PROJECT_TEMPLATES){const b=document.createElement('button');b.className='prod-recent';b.textContent=t.name+' — '+t.description;b.onclick=()=>{if(!confirm('Create a new project from this template? The current project will be replaced.'))return;replaceDoc(createTemplate(t.id));closeModal('productionProjects');notify('Template created: '+t.name)};builtins.append(b)}
-    const customs=$('prodCustomTemplates');customs.replaceChildren();
-    try{const list=await (await api('/api/v2/project/templates')).json();for(const t of list){const b=document.createElement('button');b.className='prod-recent';b.textContent=t.name;b.onclick=async()=>{if(!confirm('Create a project from this custom template?'))return;const d=await (await api('/api/v2/project/template/'+t.id)).json();d.project_id=crypto.randomUUID();d.revision=0;d.name+=' (Copy)';replaceDoc(d);closeModal('productionProjects')};customs.append(b)}}catch(e){console.warn('Custom templates unavailable',e)}
-    openModal('productionProjects')
+ // One navigation owner for the three management tasks; controls and data
+ // remain in their original panels with the same identifiers.
+ const projectTabs=[
+  ['projects','projTabProjects','projPanelProjects'],
+  ['recovery','projTabRecovery','projPanelRecovery'],
+  ['templates','projTabTemplates','projPanelTemplates']
+ ];
+ function setProjectManagerTab(which,{focus=false}={}){
+  const target=projectTabs.find(([name])=>name===which)||projectTabs[0];
+  for(const [name,tabId,panelId] of projectTabs){
+   const active=name===target[0],tab=$(tabId);
+   tab.classList.toggle('active',active);
+   tab.setAttribute('aria-selected',String(active));
+   tab.tabIndex=active?0:-1;
+   $(panelId).hidden=!active;
   }
+  if(focus)$(target[1]).focus();
+ }
+ function bindProjectManagerTabs(){
+  for(let index=0;index<projectTabs.length;index++){
+   const [name,tabId]=projectTabs[index],tab=$(tabId);
+   tab.onclick=()=>setProjectManagerTab(name);
+   tab.onkeydown=event=>{
+    let next=null;
+    if(event.key==='ArrowRight')next=(index+1)%projectTabs.length;
+    else if(event.key==='ArrowLeft')next=(index+projectTabs.length-1)%projectTabs.length;
+    else if(event.key==='Home')next=0;
+    else if(event.key==='End')next=projectTabs.length-1;
+    if(next===null)return;
+    event.preventDefault();
+    setProjectManagerTab(projectTabs[next][0],{focus:true});
+   };
+  }
+ }
+ async function recentProjects(){
+  const response=await api('/api/v2/project/recent');
+  const list=await response.json(),content=$('prodRecent');
+  content.replaceChildren();
+  if(!list.length){
+   const empty=document.createElement('div');empty.className='ux-pm-empty';
+   const title=document.createElement('strong');title.textContent='No saved projects yet';
+   const desc=document.createElement('p');desc.textContent='Save your current map to reopen it here later.';
+   const action=document.createElement('button');action.type='button';action.textContent='Save current project';action.onclick=()=>void saveProject().then(()=>recentProjects()).catch(e=>notify('Save failed: '+e.message,true));
+   empty.append(title,desc,action);content.append(empty);
+   return;
+  }
+  for(const item of list){
+   const button=document.createElement('button');button.className='prod-recent';button.type='button';
+   button.textContent=item.name+' · Revision '+item.revision+' · '+item.modified;
+   button.onclick=async()=>{
+    try{
+     if(getDoc()&&confirm('Open saved project? Unsaved changes in the current scene will be discarded.')===false)return;
+     const data=await(await api('/api/v2/project/load?id='+encodeURIComponent(item.id))).json();
+     replaceDoc(data);savedProjectId=item.id;closeModal('productionProjects');notify('Opened '+item.name);
+    }catch(e){notify('Cannot open recent project: '+e.message,true)}
+   };
+   content.append(button);
+  }
+ }
+ async function projects(){
+  setProjectManagerTab('projects');
+  $('prodRecent').textContent='Loading saved projects…';
+  $('prodRecoveries').textContent='Loading recovery copies…';
+  openModal('productionProjects');
+  $('projTabProjects').focus();
+  const outcomes=await Promise.allSettled([recentProjects(),renderRecoveries()]);
+  if(outcomes[0].status==='rejected'){
+   $('prodRecent').textContent='Could not load saved projects.';
+   notify('Could not load saved projects: '+outcomes[0].reason.message,true);
+  }
+  if(outcomes[1].status==='rejected'){
+   $('prodRecoveryEmpty').hidden=false;$('prodRecoverySection').hidden=true;
+   $('prodRecoveryEmpty').textContent='Recovery copies are temporarily unavailable.';
+  }
+  const builtins=$('prodTemplates');builtins.replaceChildren();
+  for(const template of PROJECT_TEMPLATES){
+   const button=document.createElement('button');button.className='prod-recent';button.type='button';
+   button.textContent=template.name+' — '+template.description;
+   button.onclick=()=>{
+    if(!confirm('Create a project from this template? The current project will be replaced.'))return;
+    replaceDoc(createTemplate(template.id));closeModal('productionProjects');notify('Template created: '+template.name);
+   };
+   builtins.append(button);
+  }
+  const customs=$('prodCustomTemplates');customs.textContent='Loading templates…';
+  try{
+   const list=await (await api('/api/v2/project/templates')).json();
+   customs.replaceChildren();
+   if(!list.length){
+    const empty=document.createElement('div');empty.className='ux-pm-empty';
+    empty.textContent='No custom templates yet. Save your current map as a template to reuse it.';
+    customs.append(empty);
+   }
+   for(const template of list){
+    const button=document.createElement('button');button.className='prod-recent';button.type='button';button.textContent=template.name;
+    button.onclick=async()=>{
+     try{
+      if(!confirm('Open template as a new project? The current map will be replaced.'))return;
+      const d=await (await api('/api/v2/project/template/'+template.id)).json();
+      d.project_id=crypto.randomUUID();d.revision=0;d.name+=' (Copy)';
+      replaceDoc(d);closeModal('productionProjects');
+     }catch(e){notify('Could not open template: '+e.message,true)}
+    };customs.append(button);
+   }
+  }catch(e){customs.textContent='Could not load custom templates.';console.warn('Custom templates unavailable',e);}
+ }
  function selectedIds(doc){return treeIds(doc).filter(id=>doc.objects[id]?.type!=='Group'&&isVisible(doc,id))}
  function preflight(){const doc=getDoc();const warnings=[],errors=[];
   let [width,height]=selectedValue('prodResolution').split('x').map(Number),scope=selectedValue('prodScope'),fmt=selectedValue('prodFormat');
@@ -291,8 +393,9 @@ export function setupProductionStudio({getDoc,getSelection,execute,getCountries,
  async function cancelExport(){if(exportAbort){exportAbort.abort();$('prodProgress').textContent='Canceling export…';if(exportId){try{await api('/api/v2/export/session/'+exportId,{method:'DELETE'})}catch{}}}}
  function bind(){
   bindRecoveryActions();
+ bindProjectManagerTabs();
  $('openProduction').onclick=openExport;$('prodClose').onclick=()=>closeModal('productionExport');$('prodRun').onclick=()=>void exportPackage();$('prodCancelExport').onclick=()=>void cancelExport();$('prodSavePreset').onclick=saveExportPreset;$('prodApplyPreset').onclick=applyExportPreset;$('prodDeletePreset').onclick=deleteExportPreset;
-  $('openProjects').onclick=()=>void projects().catch(e=>notify(e.message,true));$('prodProjectsClose').onclick=()=>closeModal('productionProjects');$('prodSave').onclick=()=>void saveProject().catch(e=>notify('Save failed: '+e.message,true));$('prodSaveAs').onclick=()=>void saveProject({downloadFile:true}).catch(e=>notify('Save As failed: '+e.message,true));$('prodSaveTemplate').onclick=()=>void json('/api/v2/project/template',projectDoc()).then(()=>{notify('Project saved as reusable template');return recentProjects()}).catch(e=>notify('Template save failed: '+e.message,true));
+  $('openProjects').onclick=()=>void projects().catch(e=>notify(e.message,true));$('prodProjectsClose').onclick=()=>closeModal('productionProjects');$('prodSave').onclick=()=>void saveProject().then(()=>recentProjects()).catch(e=>notify('Save failed: '+e.message,true));$('prodSaveAs').onclick=()=>void saveProject({downloadFile:true}).then(()=>recentProjects()).catch(e=>notify('Save As failed: '+e.message,true));$('prodSaveTemplate').onclick=()=>void json('/api/v2/project/template',projectDoc()).then(()=>{notify('Project saved as reusable template');return projects();}).catch(e=>notify('Template save failed: '+e.message,true));
   for(let id of ['prodScope','prodFormat','prodGranularity','prodResolution','prodMaskOpaque','prodTransparent','prodIncludeBackground','prodUseTiles'])$(id).addEventListener('change',showPreflight);
  }
  bind();
