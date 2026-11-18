@@ -66,3 +66,18 @@ The previous fix only masked `surface_material` and `cartographic_finish` to lan
 The Atlas default now uses `ocean_material: none` with strength 0; paper/fibrous/ink surfaces still appear on land with geographic camera transforms, while the Atlas sea is left as its flat map color. A user can still explicitly opt into marine patterns via ocean-material customization. Nautical presets remain unchanged.
 
 Added `tests/test_atlas_clean_ocean.mjs` for Atlas defaults, project persistence, opt-in ocean waves and nautical presets, and strengthened `tests/test_147_material_pixels.py` to assert Atlas land pixels change but ocean pixels do not when textures are enabled. This is a minimal targeted default fix, not a rewrite of the texture system. The existing static Look thumbnail may predate this refined material default and is not the source of final rendering.
+
+## Global classification of terrestrial and ocean textures (18 November 2026)
+
+The previous attempt to fix sea grain by changing only the Atlas recipe to `ocean_material: none` was too narrow. **The correct model is two independent geographic material classes**, not removing water textures:
+
+- **Terrestrial textures:** paper, parchment, canvas, fibers, engraving, print/grain, and other nonmarine materials may only be used by `surface_material`, `land_material`, and `cartographic_finish`, clipped to the coast-defined land mask.
+- **Ocean textures:** `marine_noise`, `marine_waves`, and `deep_sea` may only be used by `ocean_material`, clipped to the complementary ocean mask.
+- Both catalogs permit `none`. The project-level **Show textures** toggle controls both, while each Look keeps independent choices and intensities for land/ocean. The Atlas recipe uses fibrous parchment on land and subtle `marine_waves` (0.12 intensity) over the sea rather than paper over sea or an indiscriminate untextured ocean.
+- All 36 built-in Look recipes are validated against these categories. The Inspector/Look editor offers distinct Land and Ocean dropdown lists and visually separates the controls.
+- To preserve saved `.cartorig` compatibility, a legacy wrong-category override is retained in the document and visible in the picker as disabled/unsupported, but is **never painted** into the wrong region. The user can select a valid replacement or `none`.
+- The renderer still uses cached geographic CanvasPatterns and cached coastline masks across preview and exports. Terrain/bathymetry raster imagery (`texture_source` / `ocean_mode`) is a separate georeferenced source, not classified as a decorative material tile.
+
+Regression tests: `tests/test_material_category_logic.mjs`, `tests/test_ocean_material_isolation.mjs`, `tests/test_material_geo_anchor.mjs`, and `tests/test_147_material_pixels.py`. The old `test_atlas_clean_ocean.mjs` was removed because it encoded the incorrect assumption that all water textures must be disabled.
+
+**This section supersedes the earlier “Atlas ocean correction” note above.** Manual acceptance: compare Atlas with textures on/off; land grain and marine waves must be distinct, must each follow pan/zoom/bearing, and remain separated in PNG/ZIP export. Test another Look using `marine_noise` or `deep_sea`, and test an old `.cartorig` that assigned a terrestrial image to ocean material.
