@@ -47,6 +47,22 @@ func desktopValidOrigin(origin string) bool {
     }
 }
 
+// Wails 3 only sets the initially suggested filename; the native Windows
+// "All Files (*.*)" dialog can drop its suffix when the user edits the name.
+// Enforce the original export type after the chooser returns a filesystem path.
+// This applies to Quick PNG, Classic/Production ZIP, SVG and .cartorig saves.
+func desktopExportPath(chosen, suggested string) string {
+    if chosen == "" { return chosen }
+    ext := strings.ToLower(filepath.Ext(suggested))
+    switch ext {
+    case ".png", ".zip", ".svg", ".cartorig":
+        if !strings.EqualFold(filepath.Ext(chosen), ext) {
+            return strings.TrimRight(chosen, " .") + ext
+        }
+    }
+    return chosen
+}
+
 type desktopSaveDialog func(suggestedFilename string) (string, error)
 
 func desktopMiddleware(api http.Handler, nativeQuit func(), nativeSave desktopSaveDialog) func(http.Handler) http.Handler {
@@ -91,6 +107,7 @@ func desktopSave(w http.ResponseWriter,r *http.Request,picker desktopSaveDialog)
         w.WriteHeader(http.StatusNoContent);return
     }
     if err!=nil {http.Error(w,"Unable to choose a file destination: "+err.Error(),500);return}
+    path=desktopExportPath(path,suggested)
     if info,err:=os.Stat(path);err==nil && info.IsDir() {http.Error(w,"Invalid file destination",400);return}
     file,err:=os.CreateTemp(filepath.Dir(path),".cartorig-export-*")
     if err!=nil {http.Error(w,"Unable to create export file: "+err.Error(),500);return}
