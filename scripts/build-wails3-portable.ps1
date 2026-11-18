@@ -91,6 +91,14 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'UI stage-one contract regression failed' }
     & node tests/test_ui_map_display.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Compact map display regression failed' }
+    & node tests/test_callout_geo_anchor.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Geographic Callout regression failed' }
+    & node tests/test_material_geo_anchor.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Geographic texture material regression failed' }
+    & node --check assets/creative-renderer.js
+    if ($LASTEXITCODE -ne 0) { throw 'Creative renderer JavaScript syntax invalid' }
+    & node --check assets/scene-renderer.js
+    if ($LASTEXITCODE -ne 0) { throw 'Scene renderer JavaScript syntax invalid' }
     & node tests/test_ui_stage1_behavior.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Project Manager keyboard regression failed' }
     & node --check assets/app.js
