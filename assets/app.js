@@ -69,7 +69,7 @@ function bindTabs(){
   if(next){e.preventDefault();for(const item of $('layerTree').querySelectorAll('[role="treeitem"]'))item.tabIndex=-1;next.tabIndex=0;next.focus();}
  });
 }
-function insertNode(type,fields){let o=madeObject(type,fields?.name||type,fields||{});if(exec({type:'CreateObject',object:o}))setTab('layers');return o;}
+function insertNode(type,fields){let o=madeObject(type,fields?.name||type,fields||{});if(exec({type:'CreateObject',object:o})){setTab('layers');setRightTab('inspector');if(window.CartoRigNavigation?.compact())window.CartoRigNavigation.setRight(true);}return o;}
 function addCountry(iso){let c=byIso.get(iso);if(!c)return;return addGeoEntry({id:c.iso,name:c.name,type:'Country',source_id:'ne_admin0_110m',geometry_type:'Polygon',geometry:c.geometry});}
 function addGeoEntry(entry,mode='Marker'){
  if(entry.geometry_type==='Unavailable'||!entry.geometry && entry.type==='State'){showToast('Polygon unavailable. Import a real Admin 1 GeoJSON dataset first.',true);return null;}
@@ -562,6 +562,7 @@ function bindButtons(){
  $('ungroup').onclick=()=>{if(store.selection.length===1)exec({type:'Ungroup',id:store.selection[0]});};$('centerView').onclick=fitSelection;$('worldView').onclick=()=>exec({type:'SetCameraPose',pose:{center_lon:0,center_lat:10,zoom:1,bearing:0}});$('zoomIn').onclick=()=>exec({type:'SetCameraPose',pose:{zoom:store.doc.camera.zoom*1.4}});$('zoomOut').onclick=()=>exec({type:'SetCameraPose',pose:{zoom:store.doc.camera.zoom/1.4}});
  $('toolSelect').onclick=()=>setTool('select');$('toolPan').onclick=()=>setTool('pan');$('toolRegion').onclick=()=>setTool('region');$('toolRoute').onclick=()=>setTool('route');$('toolLabel').onclick=()=>setTool('label');$('toolMarker').onclick=()=>setTool('marker');$('toolShape').onclick=()=>setTool('shape');
  $('creativeAssetFile').onchange=e=>{const id=e.target.dataset.target;if(e.target.files[0])installCreativeIcon(e.target.files[0],id);e.target.value='';};
+ $('addPlaceFromScene').onclick=()=>{setTab('geography');$('countrySearch').focus();};
  $('countrySearch').oninput=()=>queueCountrySearch();$('continent').onchange=()=>{updateCountryFilter();queueCountrySearch(true);};$('geoCountry').onchange=()=>queueCountrySearch(true);$('geoType').onchange=()=>queueCountrySearch(true);$('importDataset').onclick=()=>$('datasetFile').click();$('datasetFile').onchange=async e=>{await importGeoFile(e.target.files?.[0]);e.target.value='';};$('layerSearch').oninput=renderTree;
  document.querySelectorAll('[data-style]').forEach(btn=>btn.onclick=()=>exec({type:'ApplyStyle',id:btn.dataset.style}));$('showBrazilStates').onchange=e=>exec({type:'SetThemeProperty',key:'show_state_boundaries',value:e.target.checked});for(let typ of ['River','Lake','Coastline'])$('show'+typ+'s').onchange=e=>exec({type:'SetThemeProperty',key:`show_${typ.toLowerCase()}s`,value:e.target.checked});
  $('resolution').onchange=e=>{let [width,height]=e.target.value.split('x').map(Number);exec({type:'SetCanvas',canvas:{width,height}});};$('transparent').onchange=e=>exec({type:'SetCanvas',canvas:{transparent:e.target.checked}});$('exportImage').onclick=exportImage;$('exportLayers').onclick=exportLayers;
