@@ -72,6 +72,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Preview cache regression failed' }
     & node tests/test_preview_composition_integration.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Preview integration regression failed' }
+    # Validate bounded pregraded terrain textures and untouched export rendering.
     & node tests/test_texture_cache.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Texture preparation regression failed' }
     & node tests/test_texture_render_path.mjs
