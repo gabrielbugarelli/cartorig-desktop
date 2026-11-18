@@ -84,7 +84,7 @@ export function visibleRasterShifts({width,height,k,center_lon=0,center_lat=0,be
    loX=Math.min(loX,u);hiX=Math.max(hiX,u);
    loY=Math.min(loY,v);hiY=Math.max(hiY,v);
   }
-  if(hiX>=xLeft-1&&loX<=xRight+1&&hiY>=yTop-1&&loY<=yBottom+1)visible.push(shift);
+  if(hiX>xLeft&&loX<xRight&&hiY>yTop&&loY<yBottom)visible.push(shift);
  }
  return visible;
 }
