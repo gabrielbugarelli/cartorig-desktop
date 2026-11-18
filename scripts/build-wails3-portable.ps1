@@ -99,10 +99,14 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Geographic texture material regression failed' }
     & node tests/test_ocean_material_isolation.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Separate ocean material regression failed' }
-    & node tests/test_atlas_clean_ocean.mjs
-    if ($LASTEXITCODE -ne 0) { throw 'Atlas flat-ocean default regression failed' }
+    & node tests/test_material_category_logic.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Land and ocean material taxonomy regression failed' }
     & node --check assets/creative-renderer.js
     if ($LASTEXITCODE -ne 0) { throw 'Creative renderer JavaScript syntax invalid' }
+    & node --check assets/look-materials.js
+    if ($LASTEXITCODE -ne 0) { throw 'Material taxonomy JavaScript syntax invalid' }
+    & node --check assets/style-studio.js
+    if ($LASTEXITCODE -ne 0) { throw 'Material selector JavaScript syntax invalid' }
     & node --check assets/scene-renderer.js
     if ($LASTEXITCODE -ne 0) { throw 'Scene renderer JavaScript syntax invalid' }
     & node tests/test_ui_stage1_behavior.mjs
