@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const f=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
+const main=f('main_wails.go'),native=f('desktop_telemetry.go'),api=f('desktop_http.go'),web=f('assets/app.js');
+assert.match(main,/TRAY_RESTORE begin/);
+assert.match(main,/TRAY_RESTORE complete/);
+assert.match(main,/WINDOW_CLOSE complete/);
+assert.match(main,/monitorWebviewHealth/);
+assert.match(native,/WEBVIEW_HEALTH/);
+assert.match(native,/WEBVIEW_WATCHDOG/);
+assert.match(native,/io.LimitReader\(r.Body,4096\)/);
+assert.match(api,/desktopReceiveHeartbeat\(w,r\)/);
+assert.match(web,/sendDesktopHealth\('ready'\)/);
+assert.match(web,/setInterval\(\(\)=>sendDesktopHealth\('periodic'\),5000\)/);
+assert.match(web,/initDesktopHealth\(\)/);
+assert.doesNotMatch(native,/project_id|objects|style_library|embedded_geometry/);
+console.log('DESKTOP DIAGNOSTICS PASS: native transitions / heartbeat / watchdog / privacy');

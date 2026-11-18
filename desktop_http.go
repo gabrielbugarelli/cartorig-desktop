@@ -69,6 +69,10 @@ func desktopMiddleware(api http.Handler, nativeQuit func(), nativeSave desktopSa
                 http.Error(w,"Exit through the Windows notification area",http.StatusGone)
                 return
             }
+            if path=="/api/desktop/heartbeat" {
+                desktopReceiveHeartbeat(w,r)
+                return
+            }
             if path=="/api/desktop/save" {
                 desktopSave(w,r,nativeSave)
                 return

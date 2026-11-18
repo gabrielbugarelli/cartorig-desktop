@@ -351,6 +351,30 @@ window.addEventListener('cartorig-desktop-visibility',event=>{
  updatePreviewVisibility();
 });
 document.addEventListener('visibilitychange',updatePreviewVisibility);
+
+// Diagnostics only: local numerical heartbeat to distinguish renderer stalls
+// from native window lifecycle hangs. Never send project contents or object names.
+let desktopHealthPending=false,desktopHealthTimer=null;
+function sendDesktopHealth(phase='periodic'){
+ if(!sessionToken||location.hostname!=='wails.localhost'||desktopHealthPending)return;
+ const metrics=previewScheduler.getStats();const bounds=wrap.getBoundingClientRect();
+ const body={phase,renders:metrics.renders,invalidations:metrics.invalidations,
+ resizeEvents:metrics.resizeEvents,skippedHidden:metrics.skippedHidden,
+ lastRenderMs:metrics.lastRenderMs,maxRenderMs:metrics.maxRenderMs,
+ framePending:metrics.framePending,previewVisible:metrics.visible,
+ documentHidden:document.hidden,webviewWidth:bounds.width,webviewHeight:bounds.height};
+ desktopHealthPending=true;
+ const controller=new AbortController();
+ const abort=setTimeout(()=>controller.abort(),2000);
+ fetch('/api/desktop/heartbeat',{method:'POST',headers:{'X-CartoRig-Token':sessionToken,'Content-Type':'application/json'},body:JSON.stringify(body),signal:controller.signal})
+ .catch(()=>{}).finally(()=>{clearTimeout(abort);desktopHealthPending=false});
+}
+function initDesktopHealth(){
+ if(location.hostname!=='wails.localhost'||desktopHealthTimer!==null)return;
+ sendDesktopHealth('ready');
+ desktopHealthTimer=setInterval(()=>sendDesktopHealth('periodic'),5000);
+ window.addEventListener('cartorig-desktop-visibility',()=>sendDesktopHealth('visibility'));
+}
 function updateCanvasSize(){let box=wrap.getBoundingClientRect(),ratio=store.doc.canvas.width/store.doc.canvas.height;let cssW=Math.max(100,Math.min(box.width-34,(box.height-34)*ratio)),cssH=cssW/ratio,pxratio=Math.min(devicePixelRatio||1,2);previewW=cssW;previewH=cssH;canvas.style.width=cssW+'px';canvas.style.height=cssH+'px';let w=Math.max(100,Math.round(cssW*pxratio)),h=Math.max(100,Math.round(cssH*pxratio));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}return {w,h};}
 function renderPreviewNow(){if(!countries.length)return;let {w,h}=updateCanvasSize();let doc=store.doc;if(dragPreview){doc=clone(doc);if(dragPreview.camera)doc.camera={...doc.camera,...dragPreview.camera};if(dragPreview.anchor){let o=doc.objects[dragPreview.id];if(o)o.anchor=dragPreview.anchor;}if(dragPreview.object)doc.objects[dragPreview.id]=dragPreview.object;}
  renderScene(ctx,doc,countries,images,w,h,{preview:true,selection:store.selection,soloId});
@@ -509,6 +533,6 @@ async function init(){
  void Promise.allSettled(materialLoads).then(()=>drawPreview());
  for(let t of ['bmng','etopo1','shadedrelief']){let im=new Image();im.src='/assets/'+t+'.jpg';im.onload=()=>{drawPreview();};images[t]=im;}
  let existing=null;try{let raw=localStorage.getItem(currentKey);if(raw){existing=JSON.parse(raw);validateDocument(existing);}else{let legacy=JSON.parse(localStorage.getItem(legacyKey)||'null');if(legacy?.version===1)existing=migrateLegacy(legacy);}}catch(e){console.warn('Recovery cache invalid:',e);existing=null;}if(existing){store.replace(existing);status('Recovered previous composition');}else store.replace(newDocument());
- updateCountryFilter();renderCountryList();setTab('layers');setRightTab('styles');syncUI();appReady=true;document.getElementById('app').classList.remove('loading');void production.recoveryCheck();new ResizeObserver(()=>previewScheduler.onResize()).observe(wrap);void Promise.all([ensureWorldAdmin1(),ensureWorldCities()]);
+ updateCountryFilter();renderCountryList();setTab('layers');setRightTab('styles');syncUI();appReady=true;document.getElementById('app').classList.remove('loading');void production.recoveryCheck();new ResizeObserver(()=>previewScheduler.onResize()).observe(wrap);initDesktopHealth();void Promise.all([ensureWorldAdmin1(),ensureWorldCities()]);
 }
 init();

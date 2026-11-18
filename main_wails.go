@@ -43,9 +43,14 @@ func main() {
     }
     restoreWindow:=func(){
         if window==nil{return}
+        log.Printf("TRAY_RESTORE begin")
         window.Show()
+        nativeWindowVisible.Store(true)
+        log.Printf("TRAY_RESTORE window shown; sending visible signal")
         sendVisibility(true)
+        log.Printf("TRAY_RESTORE signal delivered; focusing")
         window.Focus()
+        log.Printf("TRAY_RESTORE complete")
     }
     api:=newMux()
     log.Printf("CartoRig API registered")
@@ -88,9 +93,12 @@ func main() {
     window.RegisterHook(events.Common.WindowClosing,func(e *application.WindowEvent){
         if shuttingDown.Load(){return}
         e.Cancel()
+        log.Printf("WINDOW_CLOSE begin: send visibility false")
         sendVisibility(false)
+        log.Printf("WINDOW_CLOSE signal sent; hide window")
         window.Hide()
-        log.Printf("Window hidden to Windows notification area")
+        nativeWindowVisible.Store(false)
+        log.Printf("WINDOW_CLOSE complete: hidden to notification area")
     })
 
     // No AttachWindow: it overrides left-click with show/hide instead of menu.
@@ -111,6 +119,10 @@ func main() {
     log.Printf("Tray registered; left click opens menu")
     window.Center()
     window.Show()
+    nativeWindowVisible.Store(true)
+    doneMonitoring:=make(chan struct{})
+    go monitorWebviewHealth(doneMonitoring)
+    defer close(doneMonitoring)
     log.Printf("Entering Wails event loop")
     if err:=app.Run();err!=nil{desktopStartupFailure(err);return}
     log.Printf("Wails event loop finished normally")

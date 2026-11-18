@@ -63,6 +63,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Desktop lifecycle regression failed' }
     & node tests/test_preview_lifecycle.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Preview lifecycle regression failed' }
+    & node tests/test_desktop_diagnostics.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Desktop diagnostics regression failed' }
     if (-not $SkipTests) {
         & go test ./...
         if ($LASTEXITCODE -ne 0) { throw 'Legacy CartoRig tests failed' }
