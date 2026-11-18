@@ -57,6 +57,8 @@ try {
     # Test the Natural Earth -99 collision using the actual bundled 110m map.
     & node tests/test_country_id_collision.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Country identity regression failed' }
+    & node tests/test_workspace_reset.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Workspace reset regression failed' }
     if (-not $SkipTests) {
         & go test ./...
         if ($LASTEXITCODE -ne 0) { throw 'Legacy CartoRig tests failed' }

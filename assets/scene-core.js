@@ -108,6 +108,18 @@ export class SceneStore{
  execute(cmd){const before=clone(this.doc),selected=[...this.selection];try{
   const d=this.doc,objs=d.objects;let obj=objs[cmd.id];let mutable=()=>{if(!obj)throw Error('Object not found');if(isLocked(d,obj.id))throw Error('Object is locked');};
   switch(cmd.type){
+   case 'ResetScene':{
+    if(cmd.confirm!==true)throw Error('Explicit confirmation required');
+    // Reset map to default state but preserve this project's identity and Undo history.
+    const clean=newDocument();
+    clean.project_id=d.project_id;
+    clean.name=d.name;
+    clean.created_at=d.created_at;
+    for(const key of Object.keys(d))delete d[key];
+    Object.assign(d,clean);
+    this.selection=[];
+    break;
+   }
    case 'CreateObject':{let o=clone(cmd.object);if(!o.id)o.id=uuid();if(objs[o.id])throw Error('Duplicate object ID');if(!['Region','Route','Label','Marker','Shape','Group'].includes(o.type))throw Error('Unsupported object type');let parent=cmd.parent_id??null;let list=listFor(d,parent);if(parent!==null&&isLocked(d,parent))throw Error('Parent is locked');o.parent_id=parent;if(o.type==='Group'&&!Array.isArray(o.children))o.children=[];objs[o.id]=o;list.splice(cmd.index==null?list.length:clamp(cmd.index,0,list.length),0,o.id);this.selection=[o.id];break;}
    case 'SetProperty':{mutable();let path=String(cmd.path||''),value=clone(cmd.value);
      if(path==='name')obj.name=String(value).slice(0,140);

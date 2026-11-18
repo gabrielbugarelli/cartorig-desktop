@@ -16,6 +16,7 @@ export function setupNavigation(){
  function sync(){
   const leftOpen=!body.classList.contains('ux-left-collapsed'),rightOpen=!body.classList.contains('ux-right-collapsed');
   left?.setAttribute('aria-pressed',String(leftOpen));right?.setAttribute('aria-pressed',String(rightOpen));
+  left?.setAttribute('aria-expanded',String(leftOpen));right?.setAttribute('aria-expanded',String(rightOpen));
   document.getElementById('rightSidebar')?.setAttribute('aria-hidden',String(!rightOpen));
   document.querySelector('.sidebar.left')?.setAttribute('aria-hidden',String(!leftOpen));
   body.classList.toggle('ux-right-open',rightOpen);

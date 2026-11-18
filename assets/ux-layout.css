@@ -178,7 +178,6 @@ button:disabled{cursor:not-allowed}
  .stage-header{padding:0 7px}
  .stage-tools{width:100%;min-width:0;display:flex;align-items:center;overflow-x:auto;scrollbar-width:thin;gap:3px}
  .stage-tools button{flex:0 0 auto;white-space:nowrap;min-height:32px}
- .stage-tools #toggleScene{position:sticky;left:0;z-index:2;background:#152533!important}
  .stage-tools #toggleInspector{position:sticky;right:0;z-index:2;margin-left:auto;background:#152533!important}
  .toolstrip{max-width:100%;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:thin}
  .toolstrip>button{flex:0 0 auto;white-space:nowrap}
@@ -256,7 +255,6 @@ button:disabled{cursor:not-allowed}
 /* No disabled commands in the Scene action row. */
 .tree-actions:has(#ungroup[hidden]){display:none}
 .tree-actions #ungroup[hidden]{display:none}
-.ux-reset-options>.style14-danger{width:100%;margin-top:8px}
 /* Small windows: the document name must never be obscured by canvas actions. */
 @media(max-width:760px){
  .stage-header{height:auto;min-height:83px;flex-direction:column;align-items:stretch;padding:4px 8px 3px;gap:1px}
@@ -284,3 +282,10 @@ button:disabled{cursor:not-allowed}
 .ux-map-label-appearance input[type=color]{min-height:33px;padding:3px 5px}
 .ux-label-reset{align-self:end;min-height:32px;font-size:11px;white-space:normal}
 @media(max-width:850px){.ux-map-label-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Desktop sidebar toggles: mirrored icons at the edges of the stage header. */
+.stage-heading #toggleScene,.stage-tools #toggleInspector{font-family:"Segoe UI Symbol","Segoe UI",sans-serif;font-size:18px;line-height:1;min-width:31px;width:31px;height:30px;display:inline-flex;align-items:center;justify-content:center;padding:4px;flex:0 0 auto}
+.stage-heading #toggleScene{margin-right:1px}
+.ux-pane-toggle[aria-pressed="true"]{color:#b9d6e8}
+.ux-pane-toggle[aria-pressed="false"]{color:#7892a6}
+@media(max-width:760px){.stage-heading #toggleScene{position:static;flex:0 0 auto;background:transparent!important}.stage-heading{display:flex;gap:7px}}
