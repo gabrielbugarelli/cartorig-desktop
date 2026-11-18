@@ -18,8 +18,8 @@ const render=make((ctx,images,doc,key,strength,mask,w,h,requestedMasks)=>{
 const doc=newDocument();doc.theme.id='atlas';
 assert.equal(themeValue(doc,'surface_material'),'paper_clean');
 assert.equal(themeValue(doc,'land_material'),'paper_fibrous');
-assert.equal(themeValue(doc,'ocean_material'),'none','Atlas ocean should be clean by default');
-assert.equal(themeValue(doc,'ocean_material_strength'),0);
+assert.equal(themeValue(doc,'ocean_material'),'marine_waves','Atlas must use its own water-specific texture');
+assert.ok(themeValue(doc,'ocean_material_strength')>0&&themeValue(doc,'ocean_material_strength')<=.2);
 assert.equal(themeValue(doc,'cartographic_finish'),'ink_grain');
 render({},doc,[],{},1280,720);
 assert.deepEqual(calls.map(x=>[x.key,x.mask]),[
