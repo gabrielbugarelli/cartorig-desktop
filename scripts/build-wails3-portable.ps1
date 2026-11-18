@@ -33,14 +33,17 @@ try {
         & go test ./...
         if ($LASTEXITCODE -ne 0) { throw 'Legacy CartoRig tests failed' }
     }
-    & go mod tidy -modfile=go.desktop.mod
+    # Use the desktop module in the CI worktree only; the 2.0.4.1 go.mod in
+    # Git remains unchanged for existing browser/server builds.
+    Copy-Item -Force 'go.desktop.mod' 'go.mod'
+    & go mod tidy
     if ($LASTEXITCODE -ne 0) { throw 'Failed to fetch Wails 3 dependencies' }
     New-Item -ItemType Directory -Force dist | Out-Null
     $env:GOOS='windows'
     $env:GOARCH='amd64'
     $env:CGO_ENABLED='0'
     $out='dist/CartoRig-2.1.0-Wails3-Portable-Windows-x64.exe'
-    & go build -modfile=go.desktop.mod -trimpath -tags 'wails,production,fullgeo' -ldflags '-s -w -H=windowsgui' -o $out .
+    & go build -trimpath -tags 'wails,production,fullgeo' -ldflags '-s -w -H=windowsgui' -o $out .
     if ($LASTEXITCODE -ne 0) { throw 'Wails 3 Windows compilation failed' }
     $f = Get-Item $out
     if ($f.Length -lt 5MB) { throw 'Executable too small; check embedded assets' }
