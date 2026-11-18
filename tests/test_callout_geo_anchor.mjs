@@ -1,10 +1,15 @@
 /* Geographic Callout regression: the second click defines a map location,
  * while older screen-pinned annotations still load and remain editable. */
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {SceneStore,newDocument,madeObject} from '../assets/scene-core.js';
 import {drawCreative,creativeHandles,hitCreative} from '../assets/creative-renderer.js';
 import {project} from '../assets/scene-renderer.js';
 
+const app=readFileSync(new URL('../assets/app.js',import.meta.url),'utf8');
+assert.match(app,/if\(d\.shape_kind==='Callout'\)fields\.text='Callout'/);
+assert.doesNotMatch(app,/fields\.callout_box\s*=/,'newly clicked Callouts must not invent a fixed box');
+assert.match(app,/setCalloutBoxMode:/,'legacy boxes must have a conversion action');
 const store=new SceneStore(newDocument());
 const anchor={lon:-52,lat:-12},box={lon:-32,lat:-10};
 const plain=madeObject('Shape','Map-linked callout',{
