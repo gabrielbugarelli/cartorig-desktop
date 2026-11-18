@@ -37,6 +37,7 @@ jobs:
           node tests/test_callout_text_contrast.mjs
           node tests/test_material_geo_anchor.mjs
           node tests/test_ocean_material_isolation.mjs
+          node tests/test_atlas_clean_ocean.mjs
           node --check assets/creative-renderer.js
           node --check assets/scene-renderer.js
           node tests/test_ui_stage1_behavior.mjs
