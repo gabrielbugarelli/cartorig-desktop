@@ -99,6 +99,16 @@ function renderCountryList({append=false}={}){
  const browsing=Boolean(ct||country||kind!=='All');
  if(!q&&!browsing){
   count.textContent='';
+  const empty=document.createElement('div');empty.className='ux-empty-state ux-geo-start';
+  const title=document.createElement('strong');title.textContent='Find a place to add to your map';
+  const hint=document.createElement('p');hint.textContent='Search for a country, state or city, or browse by type.';
+  const actions=document.createElement('div');actions.className='ux-empty-actions';
+  for(const [label,kind] of [['Browse countries','Country'],['Browse states','State'],['Browse cities','City']]){
+   const button=document.createElement('button');button.type='button';button.textContent=label;
+   button.onclick=()=>{$('geoType').value=kind;queueCountrySearch(true);};
+   actions.append(button);
+  }
+  empty.append(title,hint,actions);root.append(empty);
   return;
  }
  const {items,total,hasMore}=geo?geo.searchPage(q,kind,ct,GEO_RESULTS_PAGE,country,geoSearchOffset):{items:[],total:0,hasMore:false};
@@ -106,8 +116,12 @@ function renderCountryList({append=false}={}){
  count.textContent=total?`${displayed} of ${total} locations`:'0 locations';
  if(!append&&!total){
   const help=document.createElement('div');help.className='help';
-  help.textContent='No matches';
-  root.append(help);return;
+  help.className='ux-empty-state';
+  const title=document.createElement('strong');title.textContent='No matching places';
+  const info=document.createElement('p');info.textContent='Try another name or remove the geographic filters.';
+  const clear=document.createElement('button');clear.type='button';clear.textContent='Clear search and filters';
+  clear.onclick=()=>{$('countrySearch').value='';$('continent').value='';$('geoType').value='All';updateCountryFilter();$('geoCountry').value='';queueCountrySearch(true);};
+  help.append(title,info,clear);root.append(help);return;
  }
  // Avoid a full DOM replacement on pagination; retain scroll position.
  if(append)root.querySelector('.geo-more')?.remove();
@@ -123,11 +137,13 @@ function renderCountryList({append=false}={}){
   const disambig=(matches.get(nameKey)||0)>1?` · Source ID ${e.id}`:'';
   parent.textContent=geoDisplayParent(e.parent||'World')+' · '+(e.geometry_type==='Unavailable'?'Polygon unavailable':e.geometry_type||'Polygon')+disambig;
   body.append(name,parent);
-  const fit=document.createElement('button');fit.textContent='⌕';fit.title='Fit location';fit.disabled=e.geometry_type==='Unavailable';fit.onclick=()=>fitGeoEntry(e);
-  row.append(tag,body,fit);
-  const button=(text,title,callback,disabled=false)=>{let b=document.createElement('button');b.textContent=text;b.title=title;b.disabled=disabled;b.onclick=callback;row.append(b);};
-  if(e.type==='City'){button('M+','Add city marker',()=>addGeoEntry(e,'Marker'));button('T+','Add city label',()=>addGeoEntry(e,'Label'));}
-  else button('+','Add independent Region',()=>addGeoEntry(e),e.geometry_type==='Unavailable');
+  const fit=document.createElement('button');fit.textContent='View';fit.className='ux-geo-fit';fit.title='Center the map on '+geoDisplayName(e);fit.setAttribute('aria-label','View '+geoDisplayName(e)+' on map');fit.disabled=e.geometry_type==='Unavailable';fit.onclick=()=>fitGeoEntry(e);
+  const actions=document.createElement('div');actions.className='ux-geo-row-actions';
+  actions.append(fit);
+  const button=(text,title,callback,disabled=false)=>{let b=document.createElement('button');b.type='button';b.textContent=text;b.title=title;b.setAttribute('aria-label',title+': '+geoDisplayName(e));b.disabled=disabled;b.onclick=callback;actions.append(b);};
+  if(e.type==='City'){button('Marker','Add city marker',()=>addGeoEntry(e,'Marker'));button('Text','Add city label',()=>addGeoEntry(e,'Label'));}
+  else button('Add','Add region to scene',()=>addGeoEntry(e),e.geometry_type==='Unavailable');
+  row.append(tag,body,actions);
   fragment.append(row);
  }
  if(hasMore){
@@ -248,6 +264,21 @@ function renderTree(){let root=$('layerTree'),focused=document.activeElement?.cl
  row.ondragstart=e=>{e.dataTransfer.setData('text/plain',id);e.dataTransfer.effectAllowed='move';};row.ondragover=e=>{e.preventDefault();const rel=(e.clientY-row.getBoundingClientRect().top)/row.getBoundingClientRect().height;row.dataset.dropzone=o.type==='Group'&&rel>.3&&rel<.7?'inside':rel<.5?'before':'after';row.classList.add('drag-target');};row.ondragleave=()=>{row.classList.remove('drag-target');delete row.dataset.dropzone;};row.ondrop=e=>{e.preventDefault();row.classList.remove('drag-target');let from=e.dataTransfer.getData('text/plain');if(!from||from===id)return;let parent,index,zone=row.dataset.dropzone||'after';delete row.dataset.dropzone;if(zone==='inside'&&o.type==='Group'){parent=id;index=o.children.length;expanded.add(id);}else{parent=o.parent_id;index=(parent?doc.objects[parent].children:doc.scene.root_ids).indexOf(id)+(zone==='after'?1:0);}exec({type:'MoveObject',id:from,parent_id:parent,index});};
  root.append(row);if(o.type==='Group'&&(expanded.has(id)||q)){for(let child of [...o.children].reverse())add(child,depth+1);}}
  for(let id of [...doc.scene.root_ids].reverse())add(id,0);
+ if(!root.querySelector('[role="treeitem"]')&&q){
+  const empty=document.createElement('div');empty.className='ux-empty-state ux-scene-empty';
+  const title=document.createElement('strong');title.textContent='No matching layers';
+  const hint=document.createElement('p');hint.textContent='Try another name or clear the layer search.';
+  const clear=document.createElement('button');clear.type='button';clear.textContent='Clear search';
+  clear.onclick=()=>{$('layerSearch').value='';renderTree();$('layerSearch').focus();};
+  empty.append(title,hint,clear);root.append(empty);
+ }else if(!q&&!Object.values(doc.objects).some(o=>!['WorldMap','Grid','Borders'].includes(o.type))){
+  const note=document.createElement('div');note.className='ux-empty-state ux-scene-empty';
+  const title=document.createElement('strong');title.textContent='Build your first map layer';
+  const hint=document.createElement('p');hint.textContent='Add a country or city from Geography, then customize it here.';
+  const browse=document.createElement('button');browse.type='button';browse.textContent='Add a place';
+  browse.onclick=()=>{setTab('geography');$('countrySearch').focus();};
+  note.append(title,hint,browse);root.append(note);
+ }
  if(focused){const previous=[...root.querySelectorAll('[role=treeitem]')].find(n=>n.dataset.id===focused);if(previous){previous.tabIndex=0;previous.focus({preventScroll:true});}}
  if(!root.querySelector('[tabindex="0"]')){const first=root.querySelector('[role=treeitem]');if(first)first.tabIndex=0;}
 }
@@ -256,7 +287,14 @@ function createField(root,label,value,onChange,{type='text',min,max,step,disable
 function createCheck(root,label,checked,onChange,disabled=false){let wrap=document.createElement('label');wrap.className='check';let input=document.createElement('input');input.type='checkbox';input.checked=!!checked;input.disabled=disabled;input.onchange=()=>onChange(input.checked);wrap.append(input,document.createTextNode(label));root.append(wrap);return input;}
 function inspectorGroup(root,title){let group=document.createElement('div');group.className='inspector-group';let h=document.createElement('h3');h.textContent=title;group.append(h);root.append(group);return group;}
 const inspectorAdvancedOpen=new Set();
-function renderInspector(){let root=$('inspector');root.replaceChildren();let ids=store.selection,doc=store.doc;$('selectionCount').textContent=ids.length>1?ids.length+' selected':'';if(!ids.length)return;
+function renderInspector(){let root=$('inspector');root.replaceChildren();let ids=store.selection,doc=store.doc;$('selectionCount').textContent=ids.length>1?ids.length+' selected':'';if(!ids.length){
+ const empty=document.createElement('div');empty.className='ux-empty-state';
+ const title=document.createElement('strong');title.textContent='Nothing selected';
+ const hint=document.createElement('p');hint.textContent='Choose a layer in Scene or click an object on the map to edit its properties.';
+ const action=document.createElement('button');action.type='button';action.textContent='Browse geography';
+ action.onclick=()=>{setTab('geography');$('countrySearch').focus();};
+ empty.append(title,hint,action);root.append(empty);return;
+}
  const target=doc.objects[ids[0]],multi=ids.length>1,locked=ids.some(id=>isLocked(doc,id));
  const objHeader=document.createElement('div');objHeader.className='ux-inspector-object';
  const objType=document.createElement('span');objType.className='ux-inspector-type';objType.textContent=multi?'MULTIPLE OBJECTS':target.type;
