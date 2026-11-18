@@ -350,7 +350,29 @@ function renderInspector(){let root=$('inspector');root.replaceChildren();let id
   representative:o=>{let g=o.embedded_geometry||(o.region_kind==='Country'?countryForRegion(o,countries,geo,store.doc.camera.zoom)?.geometry:geo?.lookup?.(o.source?.dataset_id,o.source?.feature_id)?.geometry);if(!g)return null;let b=featureFocusBounds(g),mx=(b.minx+b.maxx)/2,my=(b.miny+b.maxy)/2;for(let i=0;i<45;i++)for(let j=0;j<45;j++){let lon=b.minx+(b.maxx-b.minx)*(i===0?.5:i/45),lat=b.miny+(b.maxy-b.miny)*(j===0?.5:j/45);lon=((lon+180)%360+360)%360-180;if(pointInside(lon,lat,{geometry:g}))return {lon,lat};}return null;},
   editPath:()=>{setTool('select');editHandles=true;editOffset=false;showToast('Drag a blue handle to edit. Esc exits editing.');},
   editOffset:()=>{setTool('select');editHandles=true;editOffset=true;showToast('Drag the marker handle to change its visual offset.');},
-  convertShape:(o,space)=>{if(space===o.coordinate_space)return;let pts=o.points.map(pt=>space==='screen'?(()=>{let [x,y]=project(doc,pt.lon,pt.lat,canvas.width,canvas.height);return {x:clamp(x/canvas.width,0,1),y:clamp(y/canvas.height,0,1)};})():(()=>{let [lon,lat]=unproject(doc,pt.x*canvas.width,pt.y*canvas.height,canvas.width,canvas.height);return {lon,lat};})());exec({type:'SetProperties',id:o.id,values:{coordinate_space:space,points:pts}});},
+  convertShape:(o,space)=>{if(space===o.coordinate_space)return;let pts=o.points.map(pt=>space==='screen'?(()=>{let [x,y]=project(doc,pt.lon,pt.lat,canvas.width,canvas.height);return {x:clamp(x/canvas.width,0,1),y:clamp(y/canvas.height,0,1)};})():(()=>{let [lon,lat]=unproject(doc,pt.x*canvas.width,pt.y*canvas.height,canvas.width,canvas.height);return {lon,lat};})());
+   // A legacy pinned box must become an actual second vertex when changing
+   // coordinate spaces, otherwise two different position models compete.
+   const values={coordinate_space:space,points:pts};
+   if(o.shape_kind==='Callout'&&o.callout_box){
+    const pin=o.callout_box;
+    if(space==='screen')pts[pts.length-1]={x:pin.x,y:pin.y};
+    else{const [lon,lat]=unproject(doc,pin.x*canvas.width,pin.y*canvas.height,canvas.width,canvas.height);pts[pts.length-1]={lon:clamp(lon,-180,180),lat:clamp(lat,-90,90)};}
+    values.callout_box=null;
+   }
+   exec({type:'SetProperties',id:o.id,values});},
+  setCalloutBoxMode:(o,mode)=>{
+   if(o.shape_kind!=='Callout'||o.coordinate_space!=='geo')return;
+   const points=o.points.map(p=>({...p}));
+   if(mode==='geo'&&o.callout_box){
+    const [lon,lat]=unproject(doc,o.callout_box.x*canvas.width,o.callout_box.y*canvas.height,canvas.width,canvas.height);
+    points[points.length-1]={lon:clamp(lon,-180,180),lat:clamp(lat,-90,90)};
+    exec({type:'SetProperties',id:o.id,values:{points,callout_box:null}});
+   }else if(mode==='screen'&&!o.callout_box){
+    const p=points.at(-1),[x,y]=project(doc,p.lon,p.lat,canvas.width,canvas.height);
+    exec({type:'SetProperties',id:o.id,values:{callout_box:{x:clamp(x/canvas.width,0,1),y:clamp(y/canvas.height,0,1)}}});
+   }
+  },
   geoPoint:(anchor,screen)=>{if(screen){let [lon,lat]=unproject(doc,screen.x*canvas.width,screen.y*canvas.height,canvas.width,canvas.height);return {lon:clamp(lon,-180,180),lat:clamp(lat,-90,90)};}let [x,y]=project(doc,anchor.lon,anchor.lat,canvas.width,canvas.height);return {x:clamp(x/canvas.width,0,1),y:clamp(y/canvas.height,0,1)};}
  });
  if(['Region','Route','Marker','Label','Shape','Group'].includes(target.type)){
@@ -452,7 +474,9 @@ function commitCreativeDraft(){if(!creativeDraft)return false;const d=creativeDr
  if(d.type==='Route'&&pts.length>=2){let from=pts[0],to=pts.at(-1);if(from.lon===to.lon&&from.lat===to.lat)return false;insertNode('Route',{name:'Route',from,to,path_type:d.path_type,curvature:0,waypoints:d.path_type==='Custom'?pts.slice(1,-1):[],style:{stroke_color:'#efb95c',stroke_width:3,stroke_style:'Solid',arrowheads:'End'}});setTool('select');return true;}
  if(d.type==='Shape'&&pts.length>=(d.shape_kind==='Polygon'?3:2)){
   let fields={name:d.shape_kind,shape_kind:d.shape_kind,coordinate_space:d.coordinate_space,points:pts,style:{stroke_color:'#eab766',stroke_width:3,stroke_style:'Solid',fill_color:'#eab76644',arrowheads:'End'},editorial:true};
-  if(d.shape_kind==='Callout'){fields.text='Callout';if(d.coordinate_space==='geo'){fields.callout_box={x:creativeCursor?.x/canvas.width||.65,y:creativeCursor?.y/canvas.height||.45};}}
+  // For a new Callout, both clicks are real vertices: the anchor and the
+  // box location. No screen-pinned callout_box is created implicitly.
+  if(d.shape_kind==='Callout')fields.text='Callout';
   insertNode('Shape',fields);setTool('select');return true;
  }return false;}
 function creativePreviewObject(doc){if(!creativeDraft?.points?.length)return null;let d=creativeDraft,pts=[...d.points],cursor=creativeCursor;
@@ -503,7 +527,11 @@ function setupCanvas(){canvas.addEventListener('dblclick',e=>{const p=pointerXY(
  canvas.addEventListener('pointermove',e=>{let p=pointerXY(e),[lon,lat]=unproject(store.doc,p.x,p.y,canvas.width,canvas.height);$('cursorCoords').textContent=lat.toFixed(2)+'°, '+lon.toFixed(2)+'°';if(creativeDraft&&!drag){creativeCursor=p;drawPreview();}if(!drag)return;let dx=p.x-drag.start.x,dy=p.y-drag.start.y;if(Math.hypot(dx,dy)>4)drag.moved=true;if(!drag.moved)return;
  if(drag.handle){let {id,index}=drag.handle,obj=clone(drag.originalObject),kind=obj.type,point=creativePoint(p.x,p.y,kind==='Shape'?obj.coordinate_space:obj.type==='Label'&&obj.position_mode==='screen'?'screen':'geo');
   if(kind==='Route'){if(index===0)obj.from=point;else if(index===(obj.waypoints?.length||0)+1)obj.to=point;else obj.waypoints[index-1]=point;}
-  else if(kind==='Shape')obj.points[index]=point;
+  else if(kind==='Shape'){
+   // Legacy explicit screen-pinned Callouts expose a draggable box handle.
+   if(obj.shape_kind==='Callout'&&index===obj.points.length-1&&obj.callout_box)obj.callout_box={x:clamp(p.x/canvas.width,0,1),y:clamp(p.y/canvas.height,0,1)};
+   else obj.points[index]=point;
+  }
   else if(kind==='Label'&&obj.position_mode==='screen')obj.screen_pos=point;
   else if(kind==='Marker'&&editOffset){let [x,y]=project(store.doc,obj.anchor.lon,obj.anchor.lat,canvas.width,canvas.height),factor=canvas.height/1080;obj.offset_x=(p.x-x)/factor;obj.offset_y=(p.y-y)/factor;}
   else if(kind==='Label'||kind==='Marker')obj.anchor=point;
@@ -514,7 +542,7 @@ function setupCanvas(){canvas.addEventListener('dblclick',e=>{const p=pointerXY(
  else if(tool==='pan'||e.buttons===4){let k=scaleFor(store.doc,canvas.width,canvas.height),camera=drag.originalCamera;dragPreview={camera:{center_lon:clamp(camera.center_lon-dx/k,-180,180),center_lat:clamp(camera.center_lat+dy/k,-90,90)}};drawPreview();}
  });
  canvas.addEventListener('pointerup',e=>{if(!drag)return;let p=pointerXY(e),action=drag;drag=null;wrap.classList.remove('dragging');if(action.freehand){creativeDraft.points=action.freehand;if(creativeDraft.points.length>=2)commitCreativeDraft();else creativeDraft=null;}
- else if(action.moved&&dragPreview){let trans=dragPreview;dragPreview=null;if(trans.camera)exec({type:'SetCameraPose',pose:trans.camera});else if(trans.object){let origin=store.doc.objects[trans.id],next=trans.object;let fields={};for(let key of ['from','to','waypoints','points','anchor','screen_pos','offset_x','offset_y'])if(JSON.stringify(origin[key])!==JSON.stringify(next[key]))fields[key]=next[key];if(Object.keys(fields).length)exec({type:'SetProperties',id:trans.id,values:fields});}else if(trans.anchor)exec({type:'SetProperty',id:trans.id,path:'anchor',value:trans.anchor});}
+ else if(action.moved&&dragPreview){let trans=dragPreview;dragPreview=null;if(trans.camera)exec({type:'SetCameraPose',pose:trans.camera});else if(trans.object){let origin=store.doc.objects[trans.id],next=trans.object;let fields={};for(let key of ['from','to','waypoints','points','callout_box','anchor','screen_pos','offset_x','offset_y'])if(JSON.stringify(origin[key])!==JSON.stringify(next[key]))fields[key]=next[key];if(Object.keys(fields).length)exec({type:'SetProperties',id:trans.id,values:fields});}else if(trans.anchor)exec({type:'SetProperty',id:trans.id,path:'anchor',value:trans.anchor});}
  else if(!action.moved&&e.button===0)canvasClick(p.x,p.y,e);drawPreview();});
  canvas.addEventListener('pointercancel',()=>{drag=null;dragPreview=null;wrap.classList.remove('dragging');drawPreview();});
  canvas.addEventListener('wheel',e=>{e.preventDefault();let p=pointerXY(e),[lon1,lat1]=unproject(store.doc,p.x,p.y,canvas.width,canvas.height);let zoom=clamp(store.doc.camera.zoom*(e.deltaY<0?1.17:1/1.17),.35,80);let draft=clone(store.doc);draft.camera.zoom=zoom;let [lon2,lat2]=unproject(draft,p.x,p.y,canvas.width,canvas.height);exec({type:'SetCameraPose',pose:{zoom,center_lon:clamp(store.doc.camera.center_lon+lon1-lon2,-180,180),center_lat:clamp(store.doc.camera.center_lat+lat1-lat2,-90,90)}});},{passive:false});}
