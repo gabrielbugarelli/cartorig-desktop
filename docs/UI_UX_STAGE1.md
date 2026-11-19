@@ -81,3 +81,18 @@ The previous attempt to fix sea grain by changing only the Atlas recipe to `ocea
 Regression tests: `tests/test_material_category_logic.mjs`, `tests/test_ocean_material_isolation.mjs`, `tests/test_material_geo_anchor.mjs`, and `tests/test_147_material_pixels.py`. The old `test_atlas_clean_ocean.mjs` was removed because it encoded the incorrect assumption that all water textures must be disabled.
 
 **This section supersedes the earlier “Atlas ocean correction” note above.** Manual acceptance: compare Atlas with textures on/off; land grain and marine waves must be distinct, must each follow pan/zoom/bearing, and remain separated in PNG/ZIP export. Test another Look using `marine_noise` or `deep_sea`, and test an old `.cartorig` that assigned a terrestrial image to ocean material.
+
+## Map Display: independent land and ocean texture checkboxes (18 Nov 2026)
+
+User feedback: a single `Show textures` control is too coarse. Replace it with two project-level checkboxes directly under **MAP DISPLAY**:
+
+- **Land textures** (`render_options.land_textures_enabled`): masks paper/print/land material, geographic land raster and relief to continental geography.
+- **Ocean textures** (`render_options.ocean_textures_enabled`): separately masks ocean material and geographic ocean raster. The coastline clip preserves flat land when only ocean textures are enabled.
+
+Both are enabled on a new map, and each can be independently disabled. Existing `.cartorig` documents that only save `render_options.textures_enabled` inherit its original value for both surfaces; the first independent selection records both effective values to preserve the opposite checkbox. The old `SetTextureVisibility` command remains compatible and switches both simultaneously. Project saving, style changes, Undo/Redo, preview and exports use the same new document options; no schema version change.
+
+The global `Show textures` checkbox is removed. The surface material dropdowns remain available under **SURFACES & MATERIALS** for custom texture types/intensity. The **State boundaries** checkbox stays in the same compact MAP DISPLAY group.
+
+Regressions: `tests/test_surface_texture_switches.mjs` covers old-document migration, persistence, command/undo and four raster-composition cases; `tests/test_ui_map_display.mjs` checks the two checkboxes; `tests/test_204_texture_ui.py` checks visual on/off state, history and export in the browser. Older UI assertions expecting the obsolete `sceneTexturesEnabled` checkbox were updated.
+
+**Manual acceptance:** open Atlas/Documentary Terrain, leave Land textures enabled, turn Ocean textures off, and verify paper remains on continents but the sea is flat. Reverse the switches, pan/zoom, and compare a PNG export. Restore both switches, save as `.cartorig`, reopen and check persistence.
