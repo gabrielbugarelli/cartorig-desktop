@@ -199,22 +199,25 @@ export function setupStyleStudio({getDoc,getSelection=()=>[],exec,toast,download
   const globalHeading=el('div','ux-settings-divider','GLOBAL COMPOSITION');
   const artisticHeading=el('div','ux-settings-divider ux-artistic-divider','ARTISTIC FINISH');
   controlsArea.append(globalHeading);
-  // Texture visibility is a project-level rendering option, not a look override.
-  const textureToggle=el('label','check ux-texture-toggle');
-  const textureInput=el('input');textureInput.type='checkbox';textureInput.id='sceneTexturesEnabled';
-  textureInput.checked=texturesEnabled(doc);
-  textureInput.onchange=()=>exec({type:'SetTextureVisibility',enabled:textureInput.checked});
-  textureToggle.append(textureInput,document.createTextNode('Show textures'));
-  // Both base-map options share one compact section. Preserve the original
-  // command handlers: textures remain project-level, boundaries remain a
-  // theme override. Replace the slot contents during each redraw so no
-  // duplicate checkbox is left behind after changing Looks or settings.
+  // Independent project-level visibility for each geographic surface.
+  // Keep the controls together in MAP DISPLAY next to state boundaries.
+  const textureToggles=[
+   ['land','landTexturesEnabled','Land textures'],
+   ['ocean','oceanTexturesEnabled','Ocean textures']
+  ].map(([surface,id,title])=>{
+   const label=el('label','check ux-texture-toggle');
+   const input=el('input');input.type='checkbox';input.id=id;
+   input.checked=texturesEnabled(doc,surface);
+   input.onchange=()=>exec({type:'SetSurfaceTextureVisibility',surface,enabled:input.checked});
+   label.append(input,document.createTextNode(title));
+   return label;
+  });
   const textureSlot=mapControls?.querySelector('#uxMapTextureSlot');
   if(textureSlot){
-   textureSlot.replaceChildren(textureToggle);
+   textureSlot.replaceChildren(...textureToggles);
    controlsArea.append(mapControls);
   }else{
-   controlsArea.append(textureToggle);
+   controlsArea.append(...textureToggles);
   }
   controlsArea.append(buildMapLabels(doc,palette));
   const priority=['BORDERS & GRID','LAND & OCEAN','ATMOSPHERE','DEFAULT TYPOGRAPHY'];
