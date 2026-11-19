@@ -38,9 +38,11 @@ jobs:
           node tests/test_material_geo_anchor.mjs
           node tests/test_ocean_material_isolation.mjs
           node tests/test_material_category_logic.mjs
+          node tests/test_surface_texture_switches.mjs
           node --check assets/creative-renderer.js
           node --check assets/look-materials.js
           node --check assets/style-studio.js
+          node --check assets/scene-core.js
           node --check assets/scene-renderer.js
           node tests/test_ui_stage1_behavior.mjs
           node --check assets/app.js
