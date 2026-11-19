@@ -28,12 +28,15 @@ for(const name of ['showRivers','showLakes','showCoastlines']){
  assert.match(html,new RegExp('id="'+name+'" type="checkbox" disabled'));
 }
 assert.match(studio,/const textureSlot=mapControls\?\.querySelector\('#uxMapTextureSlot'\)/);
-assert.match(studio,/textureSlot\.replaceChildren\(textureToggle\)/,'re-render must not duplicate texture toggle');
-assert.match(studio,/controlsArea\.append\(mapControls\)/,'both controls must use the same panel');
-assert.match(studio,/textureInput\.checked=texturesEnabled\(doc\)/);
-assert.match(studio,/SetTextureVisibility/);
+assert.match(studio,/textureSlot\.replaceChildren\(\.\.\.textureToggles\)/,'re-render must not duplicate texture toggles');
+assert.match(studio,/controlsArea\.append\(mapControls\)/,'both switches must share the Map display panel');
+assert.match(studio,/\['land','landTexturesEnabled','Land textures'\]/);
+assert.match(studio,/\['ocean','oceanTexturesEnabled','Ocean textures'\]/);
+assert.match(studio,/input\.checked=texturesEnabled\(doc,surface\)/);
+assert.match(studio,/SetSurfaceTextureVisibility/);
+assert.doesNotMatch(studio,/sceneTexturesEnabled|Show textures/,'remove obsolete global checkbox');
 assert.match(app,/\$\('showBrazilStates'\)\.onchange=e=>exec\(\{type:'SetThemeProperty',key:'show_state_boundaries',value:e\.target\.checked\}\)/);
 assert.match(app,/\$\('showBrazilStates'\)\.checked=store\.doc\.theme\.overrides\.show_state_boundaries===true/);
 assert.match(css,/\.ux-map-display\{display:flex/);
 assert.match(css,/#geoPhysicalGroup\[hidden\]\{display:none!important\}/);
-console.log('UI MAP DISPLAY PASS: removed onboarding, compact shared section, preserved texture/state handlers');
+console.log('UI MAP DISPLAY PASS: removed onboarding, independent land and ocean switches with preserved state boundary handler');
