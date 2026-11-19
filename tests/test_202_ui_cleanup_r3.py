@@ -99,7 +99,8 @@ with sync_playwright() as p:
  page.locator('#tabStyles').click();page.locator('#style14ModeCustomize').click()
  assert page.locator('#uxMapBoundaries').count()==1
  assert page.locator('#uxMapDisplayTitle').inner_text()=='MAP DISPLAY'
- assert page.locator('#sceneTexturesEnabled').is_visible()
+ assert page.locator('#landTexturesEnabled').is_visible()
+ assert page.locator('#oceanTexturesEnabled').is_visible()
  assert page.locator('#showBrazilStates').is_visible()
  assert page.locator('#geoPhysicalGroup').is_hidden()
  # Graphic references from actual app, not generated mockup.
