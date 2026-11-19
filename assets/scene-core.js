@@ -26,9 +26,11 @@ export const MAP_LABEL_SIZES=Object.freeze({countries:26,states:17,national_capi
 // Without a surface, return whether either category is enabled.
 export const texturesEnabled=(doc,surface)=>{
  const options=doc?.render_options;
+ // Old shared-off value is also a compatibility master gate for clients
+ // that still update only textures_enabled.
  const legacy=options?.textures_enabled!==false;
- if(surface==='land')return options?.land_textures_enabled??legacy;
- if(surface==='ocean')return options?.ocean_textures_enabled??legacy;
+ if(surface==='land')return legacy&&(options?.land_textures_enabled!==false);
+ if(surface==='ocean')return legacy&&(options?.ocean_textures_enabled!==false);
  return texturesEnabled(doc,'land')||texturesEnabled(doc,'ocean');
 };
 export const DEFAULT_MAP_LABELS=Object.freeze({enabled:{countries:true,states:false,national_capitals:true,regional_capitals:false,cities:false,continents:false,oceans:true,seas:true},sizes:{},colors:{},font:'sans',density:'balanced',halo:2.5});
