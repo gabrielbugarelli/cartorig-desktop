@@ -46,7 +46,8 @@ with sync_playwright() as p:
  assert summaries.index('OBJECT TYPE DEFAULTS & EFFECTS')<summaries.index('SURFACES & MATERIALS')
  assert page.locator('.ux-settings-divider').first.inner_text()=='GLOBAL COMPOSITION'
  assert page.locator('#uxMapDisplayTitle').inner_text()=='MAP DISPLAY'
- assert page.locator('#sceneTexturesEnabled').is_visible()
+ assert page.locator('#landTexturesEnabled').is_visible()
+ assert page.locator('#oceanTexturesEnabled').is_visible()
  assert page.locator('#showBrazilStates').is_visible()
  page.locator('#showBrazilStates').check()
  assert page.evaluate('CartoRig.scene.theme.overrides.show_state_boundaries') is True
