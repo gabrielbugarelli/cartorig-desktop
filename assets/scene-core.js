@@ -21,7 +21,18 @@ export const COLORS = {
 // Older .cartorig documents without this optional field keep labels off.
 export const MAP_LABEL_KINDS=Object.freeze(['countries','states','national_capitals','regional_capitals','cities','continents','oceans','seas']);
 export const MAP_LABEL_SIZES=Object.freeze({countries:26,states:17,national_capitals:17,regional_capitals:14,cities:14,continents:34,oceans:30,seas:21});
-export const texturesEnabled=doc=>doc?.render_options?.textures_enabled!==false;
+// Separate material visibility by geographic surface. Legacy .cartorig files
+// only store textures_enabled; their existing choice applies to both regions.
+// Without a surface, return whether either category is enabled.
+export const texturesEnabled=(doc,surface)=>{
+ const options=doc?.render_options;
+ // Old shared-off value is also a compatibility master gate for clients
+ // that still update only textures_enabled.
+ const legacy=options?.textures_enabled!==false;
+ if(surface==='land')return legacy&&(options?.land_textures_enabled!==false);
+ if(surface==='ocean')return legacy&&(options?.ocean_textures_enabled!==false);
+ return texturesEnabled(doc,'land')||texturesEnabled(doc,'ocean');
+};
 export const DEFAULT_MAP_LABELS=Object.freeze({enabled:{countries:true,states:false,national_capitals:true,regional_capitals:false,cities:false,continents:false,oceans:true,seas:true},sizes:{},colors:{},font:'sans',density:'balanced',halo:2.5});
 export function validateMapLabels(labels){
  if(labels===undefined)return true; // backward-compatible projects
@@ -48,7 +59,7 @@ export function newDocument(){
  for(let [type,name] of [['WorldMap','World Map'],['Grid','Geographic Grid'],['Borders','Political Borders']]){
   let o=madeObject(type,name);objects[o.id]=o;root_ids.push(o.id);
  }
- return {format:'cartorig-project',schema_version:'2.0.0',project_id:uuid(),revision:0,name:'Untitled Map',canvas:{width:3840,height:2160,design_height:1080,transparent:false},camera:{projection:'equirectangular',center_lon:0,center_lat:10,zoom:1,bearing:0},theme:{id:'dark',overrides:{border_color:'#8c9aad',border_width:1.2},type_defaults:{}},map_labels:clone(DEFAULT_MAP_LABELS),render_options:{textures_enabled:true},scene:{root_ids},objects,asset_refs:[],style_library:[],saved_views:[],export_presets:[],created_at:new Date().toISOString(),updated_at:new Date().toISOString()};
+ return {format:'cartorig-project',schema_version:'2.0.0',project_id:uuid(),revision:0,name:'Untitled Map',canvas:{width:3840,height:2160,design_height:1080,transparent:false},camera:{projection:'equirectangular',center_lon:0,center_lat:10,zoom:1,bearing:0},theme:{id:'dark',overrides:{border_color:'#8c9aad',border_width:1.2},type_defaults:{}},map_labels:clone(DEFAULT_MAP_LABELS),render_options:{textures_enabled:true,land_textures_enabled:true,ocean_textures_enabled:true},scene:{root_ids},objects,asset_refs:[],style_library:[],saved_views:[],export_presets:[],created_at:new Date().toISOString(),updated_at:new Date().toISOString()};
 }
 export function migrateLegacy(legacy){
  if(!legacy || legacy.version!==1 || !Array.isArray(legacy.highlights) || !legacy.view) throw Error('Not a Map Composer v1 project');
@@ -80,7 +91,9 @@ export function validateDocument(doc){
  if(!Number.isFinite(doc.camera?.zoom)||doc.camera.zoom<=0)throw Error('Invalid camera');
  validateMapLabels(doc.map_labels);
  if(doc.render_options!==undefined){
-  if(!doc.render_options||typeof doc.render_options!=='object'||Array.isArray(doc.render_options)||Object.keys(doc.render_options).some(k=>k!=='textures_enabled')||typeof doc.render_options.textures_enabled!=='boolean')throw Error('Invalid texture visibility');
+  if(!doc.render_options||typeof doc.render_options!=='object'||Array.isArray(doc.render_options)
+   ||Object.entries(doc.render_options).some(([key,value])=>!['textures_enabled','land_textures_enabled','ocean_textures_enabled'].includes(key)||typeof value!=='boolean'))
+   throw Error('Invalid texture visibility');
  }
  if(!Array.isArray(doc.style_library??[])||(doc.style_library?.length||0)>100)throw Error('Invalid style library');
  if(!Array.isArray(doc.export_presets??[])||(doc.export_presets?.length||0)>50)throw Error('Invalid export presets');
@@ -129,7 +142,7 @@ export class SceneStore{
      else if(/^typography\.[a-z_]+$/.test(path)){obj.typography??={};obj.typography[path.slice(11)]=value;}
      else if(/^style\.[a-z_]+$/.test(path)){obj.style??={};obj.style[path.slice(6)]=value;}
      else throw Error('Unsupported property');break;}
-   case 'SetProperties':{mutable();let keys=Object.keys(cmd.values||{});if(!keys.length||keys.some(k=>!['from','to','waypoints','points','anchor','screen_pos','position_mode','coordinate_space','path_type','curvature','text','typography','style','linked_object_id','offset_x','offset_y','rotation'].includes(k)))throw Error('Invalid combined property update');for(let key of keys)obj[key]=clone(cmd.values[key]);break;}
+   case 'SetProperties':{mutable();let keys=Object.keys(cmd.values||{});if(!keys.length||keys.some(k=>!['from','to','waypoints','points','callout_box','anchor','screen_pos','position_mode','coordinate_space','path_type','curvature','text','typography','style','linked_object_id','offset_x','offset_y','rotation'].includes(k)))throw Error('Invalid combined property update');for(let key of keys)obj[key]=clone(cmd.values[key]);break;}
    case 'SetAssetFavorite':{let a=d.asset_refs?.find(x=>x.id===cmd.asset_id);if(!a)throw Error('Asset not found');a.favorite=!!cmd.value;break;}
    case 'RemoveAssetFromLibrary':{let i=d.asset_refs?.findIndex(x=>x.id===cmd.asset_id);if(i<0)throw Error('Asset not found');let a=d.asset_refs[i];let used=Object.values(objs).some(x=>x.asset_ref===a.id);if(used){if(!cmd.keepEmbedded)throw Error('Asset is used: keep embedded copy or cancel');a.catalog_visible=false;}else d.asset_refs.splice(i,1);break;}
    case 'ImportAssetAndAssign':{mutable();if(obj.type!=='Marker')throw Error('Only markers may have custom icon assets');let a=clone(cmd.asset);if(!a?.id||typeof a.data!=='string'||!/^data:image\/png;base64,/.test(a.data)||a.data.length>8_000_000||d.asset_refs.some(x=>x.id===a.id))throw Error('Invalid imported PNG');d.asset_refs.push(a);obj.asset_ref=a.id;break;}
@@ -212,8 +225,26 @@ export class SceneStore{
     validateMapLabels(d.map_labels);break;
    }
    case 'SetTextureVisibility':{
+    // Backward-compatible command: legacy callers still switch both surfaces.
     if(typeof cmd.enabled!=='boolean')throw Error('Texture visibility must be boolean');
-    d.render_options??={};d.render_options.textures_enabled=cmd.enabled;break;
+    d.render_options??={};
+    d.render_options.textures_enabled=cmd.enabled;
+    d.render_options.land_textures_enabled=cmd.enabled;
+    d.render_options.ocean_textures_enabled=cmd.enabled;
+    break;
+   }
+   case 'SetSurfaceTextureVisibility':{
+    if(!['land','ocean'].includes(cmd.surface)||typeof cmd.enabled!=='boolean')
+     throw Error('Invalid surface texture visibility');
+    // Capture the other surface's current state before migrating a project
+    // with only the old shared textures_enabled value.
+    const land=texturesEnabled(d,'land'),ocean=texturesEnabled(d,'ocean');
+    d.render_options??={};
+    d.render_options.land_textures_enabled=cmd.surface==='land'?cmd.enabled:land;
+    d.render_options.ocean_textures_enabled=cmd.surface==='ocean'?cmd.enabled:ocean;
+    // Keep the legacy master flag truthful for clients that read it directly.
+    d.render_options.textures_enabled=d.render_options.land_textures_enabled||d.render_options.ocean_textures_enabled;
+    break;
    }
    case 'SetCanvas':{d.canvas={...d.canvas,...cmd.canvas};break;}
    case 'SetExportPresets':{if(!Array.isArray(cmd.presets)||cmd.presets.length>50)throw Error('Invalid export presets');d.export_presets=clone(cmd.presets);break;}

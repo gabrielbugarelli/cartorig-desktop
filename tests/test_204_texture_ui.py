@@ -50,32 +50,53 @@ with sync_playwright() as p:
   page.evaluate('(kind)=>CartoRig.execute({type:"SetMapLabelOption",section:"enabled",key:kind,value:false})',kind)
  page.evaluate('CartoRig.execute({type:"ApplyTheme",id:"historical"})')
  page.locator('#style14ModeCustomize').click()
- ctl=page.locator('#sceneTexturesEnabled')
- assert ctl.count()==1 and ctl.is_checked()
+ land=page.locator('#landTexturesEnabled')
+ ocean=page.locator('#oceanTexturesEnabled')
+ assert land.count()==1 and ocean.count()==1 and land.is_checked() and ocean.is_checked()
  assert page.locator('#style14CustomizeView').is_visible()
- assert page.locator('text=Show textures').count()==1
+ assert page.locator('text=Land textures').count()==1
+ assert page.locator('text=Ocean textures').count()==1
+ assert page.locator('text=Show textures').count()==0
  assert page.evaluate('CartoRig.scene.theme.id')=='historical'
  palette_before=page.evaluate('JSON.stringify(CartoRig.scene.theme)')
  def canvas_bytes():
   value=page.locator('#mapCanvas').evaluate('(c)=>c.toDataURL("image/png")')
   return base64.b64decode(value.split(',')[1])
  saved_dir=BASE/'dist/tests';saved_dir.mkdir(parents=True,exist_ok=True)
- before=canvas_bytes();page.locator('#mapCanvas').screenshot(path=str(saved_dir/'CartoRig-2.0.4-Historical-Textures-On.png'))
- ctl.uncheck()
+ before=canvas_bytes();page.locator('#mapCanvas').screenshot(path=str(saved_dir/'CartoRig-Historical-Land-Ocean-On.png'))
+ land.uncheck()
+ assert not land.is_checked() and ocean.is_checked()
+ assert page.evaluate('CartoRig.scene.render_options.land_textures_enabled') is False
+ assert page.evaluate('CartoRig.scene.render_options.ocean_textures_enabled') is True
+ land_off=canvas_bytes()
+ assert hashlib.sha256(land_off).digest()!=hashlib.sha256(before).digest(),'Land toggle must change land surface'
+ land.check()
+ assert canvas_bytes()==before,'Land texture re-enable restores rendered pixels'
+ ocean.uncheck()
+ assert land.is_checked() and not ocean.is_checked()
+ assert page.evaluate('CartoRig.scene.render_options.ocean_textures_enabled') is False
+ ocean_off=canvas_bytes()
+ assert hashlib.sha256(ocean_off).digest()!=hashlib.sha256(before).digest(),'Ocean toggle must change water surface'
+ ocean.check()
+ assert canvas_bytes()==before,'Ocean texture re-enable restores rendered pixels'
+ # Historic commands should still switch both surfaces in legacy projects.
+ page.evaluate('CartoRig.execute({type:"SetTextureVisibility",enabled:false})')
+ assert not land.is_checked() and not ocean.is_checked()
  assert page.evaluate('CartoRig.scene.render_options.textures_enabled') is False
  assert page.evaluate('JSON.stringify(CartoRig.scene.theme)')==palette_before
- plain=canvas_bytes();page.locator('#mapCanvas').screenshot(path=str(saved_dir/'CartoRig-2.0.4-Historical-Textures-Off.png'))
- assert hashlib.sha256(before).digest()!=hashlib.sha256(plain).digest(),'Historical Atlas should visibly lose paper materials'
+ plain=canvas_bytes();page.locator('#mapCanvas').screenshot(path=str(saved_dir/'CartoRig-Historical-Land-Ocean-Off.png'))
+ assert hashlib.sha256(before).digest()!=hashlib.sha256(plain).digest(),'Disabling both must remove paper and ocean materials'
  page.locator('#undo').click()
- assert ctl.is_checked() and canvas_bytes()==before,'Undo restores checked UI state and original textured pixels'
+ assert land.is_checked() and ocean.is_checked() and canvas_bytes()==before,'Undo restores both controls and pixels'
  page.locator('#redo').click()
- assert not ctl.is_checked() and canvas_bytes()==plain,'Redo restores unchecked UI state and flat pixels'
- ctl.check();assert canvas_bytes()==before,'Re-enabling restores the exact original pixels'
- ctl.uncheck()
+ assert not land.is_checked() and not ocean.is_checked() and canvas_bytes()==plain,'Redo restores both disabled surfaces'
+ page.evaluate('CartoRig.execute({type:"SetTextureVisibility",enabled:true})')
+ assert canvas_bytes()==before,'Re-enabling both restores the exact original pixels'
+ page.evaluate('CartoRig.execute({type:"SetTextureVisibility",enabled:false})')
  page.evaluate('CartoRig.execute({type:"ApplyTheme",id:"atlas"})')
- assert not ctl.is_checked(),'Texture switch must survive look selection'
+ assert not land.is_checked() and not ocean.is_checked(),'Surface switches survive look selection'
  page.evaluate('CartoRig.execute({type:"ApplyTheme",id:"historical"})')
- assert not ctl.is_checked() and canvas_bytes()==plain,'Palette and texture preference remain separate'
+ assert not land.is_checked() and not ocean.is_checked() and canvas_bytes()==plain,'Palette and texture preferences remain separate'
  # Production PNG must observe the exact same project-level setting as preview.
  page.locator('#openProduction').click()
  page.evaluate('''() => {const select=document.querySelector('#prodResolution');
@@ -87,7 +108,7 @@ with sync_playwright() as p:
  flat_export=page.evaluate('window.__textureExports.find(x=>x.name==="final.png")')
  assert flat_export['size']>12000,flat_export
  page.locator('#prodClose').click()
- ctl.check()
+ page.evaluate('CartoRig.execute({type:"SetTextureVisibility",enabled:true})')
  page.locator('#openProduction').click()
  page.locator('#prodRun').click()
  page.wait_for_function('window.__textureExports.filter(x=>x.name==="final.png").length===2',timeout=40000)
@@ -96,5 +117,5 @@ with sync_playwright() as p:
  assert textured_export['hash']!=flat_export['hash'],'production export must reflect toggle'
  page.locator('#prodClose').click()
  assert not errors,errors
- print('PASS 2.0.4: real PNG materials / Canvas2D, clean control, exact restoration, undo/redo, look independence',flush=True)
+ print('PASS 2.0.4: real PNG materials / Canvas2D, independent land/ocean UI, exact restoration, undo/redo, look independence',flush=True)
  b.close()

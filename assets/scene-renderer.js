@@ -7,6 +7,8 @@ import {paintMapLabels} from './map-labels.js';
 import {countryForRegion} from './geo-catalog.js';
 import {createFilteredTextureCache,visibleRasterShifts} from './texture-cache.js';
 import {createStateBoundaryPreview} from './state-boundaries.js';
+import {materialPatternTransform} from './material-projection.js';
+import {isMaterialForSurface} from './look-materials.js';
 const rad=Math.PI/180;
 const preparedTextureCache=createFilteredTextureCache();
 const stateBoundaryPreview=createStateBoundaryPreview();
@@ -87,17 +89,17 @@ function terrainTexture(doc,palette){
  const name=themeValue(doc,'texture_source');
  return name==='solid'?null:name==='auto'?(palette.texture||null):name;
 }
-function drawLandTextureClipped(ctx,doc,countries,images,img,w,h,alpha,filter){
+function drawGeoTextureClipped(ctx,doc,countries,images,img,w,h,alpha,filter,surface){
  const visible=images._geo?.getCountriesForDraw(doc.camera.zoom)||countries;
  ctx.save();
  if(typeof Path2D==='function'){
-  // Reuse the land mask already shared by shading and print materials.
+  // Cached complementary land/ocean paths preserve coastlines and fast pan.
   const masks=materialMasks(doc,countries,images,w,h);
-  if(masks){ctx.clip(masks.land,'evenodd');ctx.globalAlpha*=alpha;rasterFiltered(ctx,doc,img,w,h,filter);}
- }else{ // Canvas without Path2D: transparent mask, no land shape may leak into sea
+  if(masks){ctx.clip(masks[surface],'evenodd');ctx.globalAlpha*=alpha;rasterFiltered(ctx,doc,img,w,h,filter);}
+ }else{ // Older Canvas2D: build a transparent mask using the land polygons.
   const layer=document.createElement('canvas');layer.width=w;layer.height=h;
   const g=layer.getContext('2d');rasterFiltered(g,doc,img,w,h,filter);
-  g.globalCompositeOperation='destination-in';g.fillStyle='#fff';
+  g.globalCompositeOperation=surface==='ocean'?'destination-out':'destination-in';g.fillStyle='#fff';
   for(const c of visible)drawPolygon(g,doc,c.geometry,w,h,true,false);
   ctx.globalAlpha*=alpha;ctx.drawImage(layer,0,0);layer.width=0;layer.height=0;
  }
@@ -108,9 +110,26 @@ function drawLandTextureClipped(ctx,doc,countries,images,img,w,h,alpha,filter){
 function materialImage(images,name){
  return name==='none'?null:images['material-'+name];
 }
-function materialPattern(ctx,image){
+// Cache each CanvasPattern for its Canvas2D context/image pair. Updating the
+// affine matrix is much cheaper than recreating or filtering image textures.
+const materialPatternCache=new WeakMap();
+function materialPattern(ctx,image,doc,w,h){
  if(!image?.naturalWidth)return null;
- return ctx.createPattern(image,'repeat');
+ let patterns=materialPatternCache.get(ctx);
+ if(!patterns){patterns=new WeakMap();materialPatternCache.set(ctx,patterns);}
+ let pattern=patterns.get(image);
+ if(!pattern){pattern=ctx.createPattern(image,'repeat');if(!pattern)return null;patterns.set(image,pattern);}
+ const k=scaleFor(doc,w,h);
+ const transform=materialPatternTransform({w,h,k,center_lon:doc.camera.center_lon,center_lat:doc.camera.center_lat,bearing:doc.camera.bearing||0,imageWidth:image.naturalWidth});
+ // The matrix applies to the pattern, not the canvas: full-frame clip masks,
+ // compositing, and tiled PNG exports keep the same geographic alignment.
+ if(typeof pattern.setTransform==='function')pattern.setTransform(transform);
+ else{
+  // Older Canvas implementations lack CanvasPattern.setTransform; the caller
+  // can still render using context transforms when needed.
+  return {pattern,transform,fallback:true};
+ }
+ return {pattern,transform,fallback:false};
 }
 let materialMaskCache=new WeakMap();
 function materialMasks(doc,countries,images,w,h){
@@ -125,10 +144,15 @@ function materialMasks(doc,countries,images,w,h){
  const masks={land,ocean};materialMaskCache.set(doc,{signature,length:source.length,first:source[0]?.geometry,last:source.at(-1)?.geometry,geo:images._geo,datasetCount:images._geo?.datasets?.size||0,masks});return masks;
 }
 function paintMaterial(ctx,images,doc,key,strengthKey,mask,w,h,masks){
- const image=materialImage(images,themeValue(doc,key));
+ const name=themeValue(doc,key);
+ // Enforce the geographic category at draw time, too. Older documents can
+ // contain a paper material in an ocean override (or vice versa); preserve
+ // their data without accidentally painting it on the wrong surface.
+ if(!isMaterialForSurface(name,mask))return;
+ const image=materialImage(images,name);
  const strength=themeValue(doc,strengthKey);
  if(!image?.naturalWidth||!(strength>0))return;
- const pattern=materialPattern(ctx,image);if(!pattern)return;
+ const material=materialPattern(ctx,image,doc,w,h);if(!material)return;
  // Transparent pixels in material PNGs provide a neutral base. Apply only
  // within valid geography for land / ocean material; no fake boundaries.
  ctx.save();
@@ -137,24 +161,40 @@ function paintMaterial(ctx,images,doc,key,strengthKey,mask,w,h,masks){
   ctx.clip(masks[mask],'evenodd');
  }
  ctx.globalAlpha*=strength;
- ctx.fillStyle=pattern;ctx.fillRect(0,0,w,h);
+ ctx.fillStyle=material.pattern;
+ if(material.fallback){
+  // Compatibility with older Canvas2D implementations: transform the context
+  // instead of the pattern, and paint precisely the inverse-mapped viewport.
+  const {a,b,c,d,e,f}=material.transform,det=a*d-b*c;
+  if(Math.abs(det)>1e-12){
+   const corners=[[0,0],[w,0],[w,h],[0,h]].map(([x,y])=>[(d*(x-e)-c*(y-f))/det,(-b*(x-e)+a*(y-f))/det]);
+   const left=Math.min(...corners.map(p=>p[0])),right=Math.max(...corners.map(p=>p[0]));
+   const top=Math.min(...corners.map(p=>p[1])),bottom=Math.max(...corners.map(p=>p[1]));
+   ctx.transform(a,b,c,d,e,f);
+   ctx.fillRect(left,top,right-left,bottom-top);
+  }
+ }else ctx.fillRect(0,0,w,h);
  ctx.restore();
 }
 function paintSceneMaterials(ctx,doc,countries,images,w,h){
  textureRenderStats.lastMaterialsMs=0;
- if(!texturesEnabled(doc))return;
+ const land=texturesEnabled(doc,'land'),ocean=texturesEnabled(doc,'ocean');
+ if(!land&&!ocean)return;
  const started=textureNow();
  const masks=materialMasks(doc,countries,images,w,h);
- // Support is a texture of the editorial medium, NOT geographical height.
- paintMaterial(ctx,images,doc,'surface_material','surface_strength','all',w,h,masks);
- paintMaterial(ctx,images,doc,'ocean_material','ocean_material_strength','ocean',w,h,masks);
- paintMaterial(ctx,images,doc,'land_material','land_material_strength','land',w,h,masks);
- paintMaterial(ctx,images,doc,'cartographic_finish','finish_strength','all',w,h,masks);
+ // Two independent surface switches, with the same cached coast masks and
+ // WGS84-anchored textures as before. No disabled category is painted.
+ if(land){
+  paintMaterial(ctx,images,doc,'surface_material','surface_strength','land',w,h,masks);
+  paintMaterial(ctx,images,doc,'land_material','land_material_strength','land',w,h,masks);
+  paintMaterial(ctx,images,doc,'cartographic_finish','finish_strength','land',w,h,masks);
+ }
+ if(ocean)paintMaterial(ctx,images,doc,'ocean_material','ocean_material_strength','ocean',w,h,masks);
  textureRenderStats.lastMaterialsMs=textureNow()-started;
 }
 function paintReliefProfile(ctx,doc,countries,images,w,h){
  textureRenderStats.lastReliefMs=0;
- if(!texturesEnabled(doc))return;
+ if(!texturesEnabled(doc,'land'))return;
  const profile=themeValue(doc,'relief_profile');
  const strength=themeValue(doc,'relief_strength');
  if(!(strength>0)||profile==='none'||profile==='bathymetric')return;
@@ -177,18 +217,28 @@ function drawWorld(ctx,doc,countries,images,w,h){
  ctx.save();ctx.globalAlpha*=themeValue(doc,'ocean_opacity');ctx.fillStyle=theme.ocean;ctx.fillRect(0,0,w,h);ctx.restore();
  const src=terrainTexture(doc,theme),texture=src&&images[src],hasTexture=!!texture?.naturalWidth;
  const filter=`contrast(${themeValue(doc,'terrain_contrast')}) saturate(${themeValue(doc,'terrain_saturation')})`;
- if(hasTexture){
-  if(themeValue(doc,'ocean_mode')==='solid'||themeValue(doc,'land_opacity')!==1){
-   drawLandTextureClipped(ctx,doc,countries,images,texture,w,h,themeValue(doc,'land_opacity'),filter);
-  }else{rasterFiltered(ctx,doc,texture,w,h,filter);}
+ const landTextures=texturesEnabled(doc,'land'),oceanTextures=texturesEnabled(doc,'ocean');
+ const oceanRaster=oceanTextures&&themeValue(doc,'ocean_mode')==='raster';
+ const landOpacity=themeValue(doc,'land_opacity');
+ if(hasTexture&&landTextures&&oceanRaster&&landOpacity===1){
+  // Original fast path: one prepared raster covers both enabled surfaces.
+  rasterFiltered(ctx,doc,texture,w,h,filter);
  }else{
-  ctx.save();ctx.fillStyle=theme.land;ctx.globalAlpha*=themeValue(doc,'land_opacity');
-  let visible=images._geo?.getCountriesForDraw(doc.camera.zoom)||countries;
-  for(const c of visible)drawPolygon(ctx,doc,c.geometry,w,h,true,false);ctx.restore();
+  if(hasTexture&&oceanRaster)
+   drawGeoTextureClipped(ctx,doc,countries,images,texture,w,h,1,filter,'ocean');
+  if(hasTexture&&landTextures)
+   drawGeoTextureClipped(ctx,doc,countries,images,texture,w,h,landOpacity,filter,'land');
+  else{
+   // With land textures off, keep the land palette visible, even if the
+   // ocean is still raster-textured.
+   ctx.save();ctx.fillStyle=theme.land;ctx.globalAlpha*=landOpacity;
+   let visible=images._geo?.getCountriesForDraw(doc.camera.zoom)||countries;
+   for(const c of visible)drawPolygon(ctx,doc,c.geometry,w,h,true,false);ctx.restore();
+  }
  }
  // Texture shading is a luminance grade of a bundled color raster, NOT a
  // physical DEM or an assertion of measured elevation.
- if(texturesEnabled(doc)&&themeValue(doc,'terrain_enabled')&&themeValue(doc,'terrain_strength')>0){
+ if(landTextures&&themeValue(doc,'terrain_enabled')&&themeValue(doc,'terrain_strength')>0){
   const shade=images[themeValue(doc,'terrain_source')];
   if(shade?.naturalWidth){ctx.save();ctx.globalAlpha*=themeValue(doc,'terrain_strength');
    ctx.globalCompositeOperation='multiply';

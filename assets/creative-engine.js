@@ -99,6 +99,9 @@ export function validateCreative(o){
  }
  if(o.type==='Shape'){
   if(!SHAPES.includes(o.shape_kind)||!['geo','screen'].includes(o.coordinate_space)||!Array.isArray(o.points)||o.points.length>10000)throw Error('Invalid editorial shape');
+  if(o.callout_box!=null){
+   if(o.shape_kind!=='Callout'||!Number.isFinite(o.callout_box.x)||!Number.isFinite(o.callout_box.y)||o.callout_box.x<0||o.callout_box.x>1||o.callout_box.y<0||o.callout_box.y>1)throw Error('Invalid pinned Callout box');
+  }
   for(let p of o.points){if(o.coordinate_space==='geo'?!pointValid(p):!(Number.isFinite(p.x)&&Number.isFinite(p.y)&&p.x>=0&&p.x<=1&&p.y>=0&&p.y<=1))throw Error('Invalid shape coordinates');}
   if(o.points.length<(o.shape_kind==='Polygon'?3:2))throw Error('Insufficient shape vertices');
   if(o.shape_kind==='Polygon'){

@@ -49,17 +49,31 @@ with sync_playwright() as p:
       doc.theme.overrides.ocean_material='none';doc.theme.overrides.ocean_material_strength=0;
       doc.theme.overrides.surface_material='paper_aged';doc.theme.overrides.surface_strength=.9;
       const surface=sample(),sd=difference(plain,surface);
+      doc.theme.overrides.surface_material='none';doc.theme.overrides.surface_strength=0;
+      doc.theme.overrides.cartographic_finish='ink_grain';doc.theme.overrides.finish_strength=1;
+      const finish=sample(),fd=difference(plain,finish);
+      // Atlas uses a fibrous-paper land pattern and a separate, quieter
+      // marine_waves pattern over the water. Each must change only its surface.
+      const priorTheme=doc.theme,priorOptions=doc.render_options;
+      doc.theme={id:'atlas',type_defaults:{},overrides:{}};
+      doc.render_options={textures_enabled:false};
+      const atlasWithout=sample();
+      doc.render_options.textures_enabled=true;
+      const atlasWith=sample(),atlasDiff=difference(atlasWithout,atlasWith);
+      doc.theme=priorTheme;doc.render_options=priorOptions;
       // A country overlay must be immune to the base map's art texture.
       const region=madeObject('Region','Test',{region_kind:'Country',source:{dataset_id:'ne_admin0_110m',feature_id:'TEST'},style:{fill_color:'#c30000',fill_opacity:1,stroke_width:0}});
       doc.objects[region.id]=region;doc.scene.root_ids.push(region.id);
       const after=sample(),center=(90*w+160)*4,overlaid=[...after.slice(center,center+4)];
-      return {deterministic,ld,od,sd,overlaid};
+      return {deterministic,ld,od,sd,fd,atlasDiff,overlaid};
     }''', {'materials':materials})
     assert not errors,errors
     assert r['deterministic']['land']==0 and r['deterministic']['water']==0,r
     assert r['ld']['land']>2 and r['ld']['water']<.01,r
     assert r['od']['water']>2 and r['od']['land']<.01,r
-    assert r['sd']['water']>0.5 and r['sd']['land']>.5,r
+    assert r['sd']['land']>0.5 and r['sd']['water']<.01,r
+    assert r['fd']['land']>0.5 and r['fd']['water']<.01,r
+    assert r['atlasDiff']['land']>0.5 and r['atlasDiff']['water']>0.05,r
     assert r['overlaid'][:3]==[195,0,0] and r['overlaid'][3]==255,r
-    print('PASS: masked land / masked ocean / full-map surface / deterministic output / intact country overrides:',r)
+    print('PASS: independent land-paper and marine-water materials / deterministic output / intact region overrides:',r)
     browser.close()

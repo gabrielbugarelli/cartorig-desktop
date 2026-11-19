@@ -87,6 +87,38 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Map label stacking regression failed' }
     & node tests/test_recovery_bulk_ui.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Recovery bulk selection UI regression failed' }
+    & node tests/test_ui_stage1.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'UI stage-one contract regression failed' }
+    & node tests/test_ui_map_display.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Compact map display regression failed' }
+    & node tests/test_callout_geo_anchor.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Geographic Callout regression failed' }
+    & node tests/test_callout_text_contrast.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Callout text contrast regression failed' }
+    & node tests/test_material_geo_anchor.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Geographic texture material regression failed' }
+    & node tests/test_ocean_material_isolation.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Separate ocean material regression failed' }
+    & node tests/test_material_category_logic.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Land and ocean material taxonomy regression failed' }
+    & node tests/test_surface_texture_switches.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Independent land and ocean texture regression failed' }
+    & node --check assets/creative-renderer.js
+    if ($LASTEXITCODE -ne 0) { throw 'Creative renderer JavaScript syntax invalid' }
+    & node --check assets/look-materials.js
+    if ($LASTEXITCODE -ne 0) { throw 'Material taxonomy JavaScript syntax invalid' }
+    & node --check assets/style-studio.js
+    if ($LASTEXITCODE -ne 0) { throw 'Material selector JavaScript syntax invalid' }
+    & node --check assets/scene-core.js
+    if ($LASTEXITCODE -ne 0) { throw 'Scene rendering options syntax invalid' }
+    & node --check assets/scene-renderer.js
+    if ($LASTEXITCODE -ne 0) { throw 'Scene renderer JavaScript syntax invalid' }
+    & node tests/test_ui_stage1_behavior.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Project Manager keyboard regression failed' }
+    & node --check assets/app.js
+    if ($LASTEXITCODE -ne 0) { throw 'Invalid editor JavaScript syntax' }
+    & node --check assets/production-studio.js
+    if ($LASTEXITCODE -ne 0) { throw 'Invalid Project Manager JavaScript syntax' }
     if (-not $SkipTests) {
         & go test ./...
         if ($LASTEXITCODE -ne 0) { throw 'Legacy CartoRig tests failed' }

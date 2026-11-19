@@ -1,3 +1,13 @@
+# CartoRig Desktop v2.1.0 — UI/UX Etapa 1
+
+Release oficial Windows x64: [v2.1.0](https://github.com/gabrielbugarelli/cartorig-desktop/releases/tag/v2.1.0) · [Notas da versão](docs/releases/v2.1.0.md).
+
+**MAP DISPLAY** possui dois controles independentes: **Land textures** e **Ocean textures**. Assim, é possível aplicar texturas somente aos continentes, somente ao oceano, em ambos ou em nenhum, sem alterar o estilo selecionado. Os projetos `.cartorig` antigos permanecem compatíveis.
+
+A versão portable integra as melhorias da primeira etapa de UI/UX, correções de Callout, cache e desenho do mapa, recuperação de projetos e exportações. A Etapa 2 será desenvolvida após a publicação desta release.
+
+---
+
 ## Correção 2.0.4.1 — Classic layers ZIP
 
 A exportação de camadas agora aceita nomes Unicode válidos de objetos geográficos, como `Bolívar`, `São Paulo`, `Αθήνα` e `東京`, de forma compatível com a normalização que já era usada pelo frontend. A versão 2.0.4 gerava esses nomes, mas o backend Go os rejeitava como “Invalid layer file”. A validação continua impedindo caminhos, separadores e nomes impróprios. O formato `.cartorig` não foi modificado. O aplicativo segue offline e abre no navegador local.

@@ -39,7 +39,24 @@ function symbol(ctx,kind,x,y,r){ctx.beginPath();switch(kind){
  default:ctx.arc(x,y,r,0,Math.PI*2);
  }}
 export function shapeScreenPoints(doc,o,w,h,project){return (o.points||[]).map(p=>unit(p,doc,w,h,project));}
-export function creativeHandles(doc,o,w,h,project){if(o.type==='Route')return routePoints(doc,o).map((p,i)=>({...p,xy:worldXY(doc,p,w,h,project),index:i}));if(o.type==='Shape')return (o.points||[]).map((p,i)=>({...p,xy:unit(p,doc,w,h,project),index:i}));if(o.type==='Marker'||o.type==='Label'){let p=resolveLink(doc,o.anchor);return p?[{...p,xy:o.type==='Label'&&o.position_mode==='screen'?[o.screen_pos.x*w,o.screen_pos.y*h]:worldXY(doc,p,w,h,project),index:0}]:[];}return [];}
+export function creativeHandles(doc,o,w,h,project){
+ if(o.type==='Route')return routePoints(doc,o).map((p,i)=>({...p,xy:worldXY(doc,p,w,h,project),index:i}));
+ if(o.type==='Shape'){
+  const handles=(o.points||[]).map((p,i)=>({...p,xy:unit(p,doc,w,h,project),index:i}));
+  if(o.shape_kind==='Callout'&&handles.length){
+   // Old saved Callouts have an explicitly screen-pinned box. Show the
+   // real box control handle, not the obsolete underlying second vertex.
+   if(o.callout_box)handles.at(-1).xy=[o.callout_box.x*w,o.callout_box.y*h];
+   if(o.linked_object_id&&o.coordinate_space==='geo'){
+    const marker=doc.objects?.[o.linked_object_id];
+    if(marker?.type==='Marker'&&marker.anchor)handles[0].xy=worldXY(doc,marker.anchor,w,h,project);
+   }
+  }
+  return handles;
+ }
+ if(o.type==='Marker'||o.type==='Label'){let p=resolveLink(doc,o.anchor);return p?[{...p,xy:o.type==='Label'&&o.position_mode==='screen'?[o.screen_pos.x*w,o.screen_pos.y*h]:worldXY(doc,p,w,h,project),index:0}]:[];}
+ return [];
+}
 function drawRoute(ctx,doc,o,w,h,project){let f=h/1080,s=o.style||{},pts=routeSamples(doc,o,Math.min(w/360,h/180)*doc.camera.zoom),paths=[];ctx.save();ctx.strokeStyle=s.stroke_color||'#efb95c';ctx.fillStyle=s.arrow_fill||ctx.strokeStyle;strokeStyle(ctx,s,f);ctx.beginPath();paths=drawGeoSegments(ctx,doc,pts,w,h);ctx.stroke();ctx.setLineDash([]);
  const arrowMode=s.arrowheads||'End',size=(s.arrow_size??12)*f;for(const path of paths){if(path.length<2)continue; if(arrowMode==='Start'||arrowMode==='Both')arrow(ctx,path[1],path[0],size,ctx.fillStyle);if(arrowMode==='End'||arrowMode==='Both')arrow(ctx,path.at(-2),path.at(-1),size,ctx.fillStyle);}ctx.restore();}
 function drawMarker(ctx,doc,o,w,h,project){let f=h/1080,s=o.style||{},p=resolveLink(doc,o.anchor);if(!p)return;let [x,y]=worldXY(doc,p,w,h,project),r=Math.max(1,(s.symbol_size??12)*f);x+=(o.offset_x||0)*f;y+=(o.offset_y||0)*f;ctx.save();ctx.translate(x,y);ctx.rotate((o.rotation||0)*RAD);ctx.translate(-x,-y);ctx.fillStyle=s.fill_color||'#e5b467';ctx.strokeStyle=s.stroke_color||'#fff';ctx.lineWidth=Math.max(0,(s.stroke_width??2))*f;let bitmap=imageFor(doc,o);if(bitmap){ctx.drawImage(bitmap,x-r,y-r,r*2,r*2);}else{symbol(ctx,o.symbol||'Circle',x,y,r);ctx.fill();if(ctx.lineWidth>0)ctx.stroke();}ctx.restore();}
@@ -50,7 +67,16 @@ function drawLabel(ctx,doc,o,w,h,project){let f=h/1080,s=o.style||{},ty=o.typogr
  for(let i=0;i<lines.length;i++){let y=(i-(lines.length-1)/2)*lh;if(ctx.lineWidth>0)ctx.strokeText(lines[i],0,y);ctx.fillText(lines[i],0,y);}ctx.restore();}
 function drawShape(ctx,doc,o,w,h,project){let f=h/1080,s=o.style||{},kind=o.shape_kind,pts=shapeScreenPoints(doc,o,w,h,project);if(pts.length<2)return;
  ctx.save();ctx.strokeStyle=s.stroke_color||'#eab766';ctx.fillStyle=s.fill_color||'#eab76644';strokeStyle(ctx,s,f);let a=pts[0],b=pts.at(-1);if(o.linked_object_id&&o.coordinate_space==='geo'){const marker=doc.objects[o.linked_object_id];if(marker?.type==='Marker'&&marker.anchor)a=worldXY(doc,marker.anchor,w,h,project);}
- if(kind==='Callout'){let caption=o.text||'Callout';let leader=a;let px=o.callout_box?.x*w??b[0],py=o.callout_box?.y*h??b[1];ctx.beginPath();ctx.moveTo(...leader);ctx.lineTo(px,py);ctx.stroke();ctx.setLineDash([]);let width=Math.max(130*f,caption.length*11*f),height=44*f;ctx.fillStyle=s.background_color||'#12273dee';ctx.fillRect(px,py-height/2,width,height);ctx.strokeRect(px,py-height/2,width,height);ctx.fillStyle=s.text_color||'#fff';ctx.font=`${18*f}px sans-serif`;ctx.textBaseline='middle';ctx.fillText(caption,px+12*f,py,width-20*f);ctx.restore();return;}
+ if(kind==='Callout'){
+  let caption=o.text||'Callout',px=o.callout_box?o.callout_box.x*w:b[0],py=o.callout_box?o.callout_box.y*h:b[1];
+  // Newly drawn geographic Callouts use point #2 (b), which projects with
+  // the camera. Explicit legacy screen-pinned boxes keep their old behavior.
+  ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(px,py);ctx.stroke();ctx.setLineDash([]);
+  let width=Math.max(130*f,caption.length*11*f),height=44*f;
+  ctx.fillStyle=s.background_color||'#12273dee';ctx.fillRect(px,py-height/2,width,height);ctx.strokeRect(px,py-height/2,width,height);
+  ctx.fillStyle=s.text_color||'#fff';ctx.font=`${18*f}px sans-serif`;ctx.textBaseline='middle';ctx.fillText(caption,px+12*f,py,width-20*f);
+  ctx.restore();return;
+ }
  if(kind==='Distance'){let m=o.coordinate_space==='geo'?geoDistance(o.points[0],o.points.at(-1)):null;ctx.beginPath();if(o.coordinate_space==='geo')drawGeoSegments(ctx,doc,o.points,w,h);else{ctx.moveTo(...a);ctx.lineTo(...b);}ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=s.text_color||'#fff';ctx.font=`${16*f}px sans-serif`;ctx.textAlign='center';let label=m?(m.meters/1000).toFixed(1)+' km'+(m.approximate?' ~':''):'Visual length';ctx.fillText(label,(a[0]+b[0])/2,(a[1]+b[1])/2-12*f);ctx.restore();return;}
  ctx.beginPath();if(kind==='Rectangle'){ctx.rect(a[0],a[1],b[0]-a[0],b[1]-a[1]);}
  else if(kind==='Ellipse'){let cx=(a[0]+b[0])/2,cy=(a[1]+b[1])/2,rx=Math.abs(a[0]-b[0])/2,ry=Math.abs(a[1]-b[1])/2;ctx.ellipse(cx,cy,Math.max(.1,rx),Math.max(.1,ry),0,0,Math.PI*2);}
@@ -62,6 +88,12 @@ const segDist=(a,b,x,y)=>{let dx=b[0]-a[0],dy=b[1]-a[1],t=Math.max(0,Math.min(1,
 export function hitCreative(doc,o,x,y,w,h,project){let f=h/1080;if(o.type==='Marker'||o.type==='Label'){let handles=creativeHandles(doc,o,w,h,project);if(!handles.length)return false;let [hx,hy]=handles[0].xy;hx+=(o.offset_x||0)*f;hy+=(o.offset_y||0)*f;let tolerance=o.type==='Marker'?Math.max(9,(o.style?.symbol_size||12)*f):Math.max(20,(o.typography?.font_size||27)*String(o.text||'').length*.32*f);return Math.abs(hx-x)<tolerance&&Math.abs(hy-y)<Math.max(15,(o.typography?.font_size||27)*f);}
  if(o.type==='Route'){let pts=routeSamples(doc,o,Math.min(w/360,h/180)*doc.camera.zoom);let ctx={moveTo(){},lineTo(){}};let paths=drawGeoSegments(ctx,doc,pts,w,h);return paths.some(p=>p.slice(1).some((b,i)=>segDist(p[i],b,x,y)<Math.max(6,(o.style?.stroke_width||3)*f/2+6)));}
  if(o.type==='Shape'){let pts=shapeScreenPoints(doc,o,w,h,project);if(!pts.length)return false;
+  if(o.shape_kind==='Callout'&&pts.length>=2){
+   const handles=creativeHandles(doc,o,w,h,project),a=handles[0].xy,b=handles.at(-1).xy;
+   const width=Math.max(130*f,String(o.text||'Callout').length*11*f),height=44*f;
+   return segDist(a,b,x,y)<Math.max(6,((o.style?.stroke_width||2)*f)/2+5)
+    ||(x>=b[0]-8*f&&x<=b[0]+width+8*f&&y>=b[1]-height/2-8*f&&y<=b[1]+height/2+8*f);
+  }
   if(['Polygon','Rectangle','Ellipse'].includes(o.shape_kind)&&pts.length>=(o.shape_kind==='Rectangle'?2:3)){
     let polygon=o.shape_kind==='Rectangle'?[[pts[0][0],pts[0][1]],[pts[1][0],pts[0][1]],[pts[1][0],pts[1][1]],[pts[0][0],pts[1][1]]]:pts;
     let inside=false;for(let i=0,j=polygon.length-1;i<polygon.length;j=i++){let a=polygon[i],b=polygon[j];if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])inside=!inside;}if(inside)return true;

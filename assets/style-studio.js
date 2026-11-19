@@ -1,4 +1,4 @@
-import {MATERIAL_IDS,RELIEF_PROFILES,LOOK_MATERIAL_RECIPES,LOOK_FAMILIES} from './look-materials.js';
+import {LAND_MATERIAL_IDS,OCEAN_MATERIAL_IDS,RELIEF_PROFILES,LOOK_MATERIAL_RECIPES,LOOK_FAMILIES} from './look-materials.js';
 /* CartoRig 1.4 — Style Studio, strictly driven by CommandBus. MIT. */
 import {COLORS,MAP_LABEL_KINDS,MAP_LABEL_SIZES,texturesEnabled} from './scene-core.js';
 import {REFERENCE_LOOKS} from './reference-looks.js';
@@ -9,7 +9,7 @@ const groups=[
   ['land_color','Land fill','color'],['land_opacity','Land opacity','number',0,1,.05],
   ['ocean_color','Ocean fill','color'],['ocean_opacity','Ocean opacity','number',0,1,.05],
   ['texture_source','Map texture','select',['auto','solid','shadedrelief','bmng','etopo1']],
-  ['ocean_mode','Texture over ocean','select',['raster','solid']]]],
+  ['ocean_mode','Geographic raster over ocean','select',['raster','solid']]]],
  ['BORDERS & GRID',[
   ['border_color','Border color','color'],['border_width','Border width (px)','number',0,40,.5],
   ['border_opacity','Border opacity','number',0,1,.05],
@@ -19,14 +19,14 @@ const groups=[
   ['grid_labels','Draw grid coordinates','checkbox'],
   ['grid_label_size','Grid label size (px)','number',8,36,1]]],
  ['SURFACES & MATERIALS',[
-  ['surface_material','Map support material','select',MATERIAL_IDS],
-  ['surface_strength','Support texture intensity','number',0,1,.05],
-  ['land_material','Land surface','select',MATERIAL_IDS],
-  ['land_material_strength','Land material intensity','number',0,1,.05],
-  ['ocean_material','Ocean surface','select',MATERIAL_IDS],
-  ['ocean_material_strength','Ocean material intensity','number',0,1,.05],
-  ['cartographic_finish','Print / engraving finish','select',MATERIAL_IDS],
-  ['finish_strength','Finish intensity','number',0,1,.05]]],
+  ['surface_material','Land paper / support','select',LAND_MATERIAL_IDS],
+  ['surface_strength','Land paper intensity','number',0,1,.05],
+  ['land_material','Land texture','select',LAND_MATERIAL_IDS],
+  ['land_material_strength','Land texture intensity','number',0,1,.05],
+  ['cartographic_finish','Land engraving / print finish','select',LAND_MATERIAL_IDS],
+  ['finish_strength','Land finish intensity','number',0,1,.05],
+  ['ocean_material','Ocean texture','select',OCEAN_MATERIAL_IDS],
+  ['ocean_material_strength','Ocean texture intensity','number',0,1,.05]]],
  ['RELIEF ART DIRECTION',[
   ['relief_profile','Relief treatment','select',RELIEF_PROFILES],
   ['relief_strength','Relief contrast/intensity','number',0,1,.05]]],
@@ -199,14 +199,26 @@ export function setupStyleStudio({getDoc,getSelection=()=>[],exec,toast,download
   const globalHeading=el('div','ux-settings-divider','GLOBAL COMPOSITION');
   const artisticHeading=el('div','ux-settings-divider ux-artistic-divider','ARTISTIC FINISH');
   controlsArea.append(globalHeading);
-  // Texture visibility is a project-level rendering option, not a look override.
-  const textureToggle=el('label','check ux-texture-toggle');
-  const textureInput=el('input');textureInput.type='checkbox';textureInput.id='sceneTexturesEnabled';
-  textureInput.checked=texturesEnabled(doc);
-  textureInput.onchange=()=>exec({type:'SetTextureVisibility',enabled:textureInput.checked});
-  textureToggle.append(textureInput,document.createTextNode('Show textures'));
-  controlsArea.append(textureToggle);
-  if(mapControls)controlsArea.append(mapControls);
+  // Independent project-level visibility for each geographic surface.
+  // Keep the controls together in MAP DISPLAY next to state boundaries.
+  const textureToggles=[
+   ['land','landTexturesEnabled','Land textures'],
+   ['ocean','oceanTexturesEnabled','Ocean textures']
+  ].map(([surface,id,title])=>{
+   const label=el('label','check ux-texture-toggle');
+   const input=el('input');input.type='checkbox';input.id=id;
+   input.checked=texturesEnabled(doc,surface);
+   input.onchange=()=>exec({type:'SetSurfaceTextureVisibility',surface,enabled:input.checked});
+   label.append(input,document.createTextNode(title));
+   return label;
+  });
+  const textureSlot=mapControls?.querySelector('#uxMapTextureSlot');
+  if(textureSlot){
+   textureSlot.replaceChildren(...textureToggles);
+   controlsArea.append(mapControls);
+  }else{
+   controlsArea.append(...textureToggles);
+  }
   controlsArea.append(buildMapLabels(doc,palette));
   const priority=['BORDERS & GRID','LAND & OCEAN','ATMOSPHERE','DEFAULT TYPOGRAPHY'];
   const orderedGroups=[...priority.map(name=>groups.find(([heading])=>heading===name)),...groups.filter(([heading])=>!priority.includes(heading))].filter(Boolean);
@@ -216,11 +228,24 @@ export function setupStyleStudio({getDoc,getSelection=()=>[],exec,toast,download
    section.addEventListener('click',event=>{if(event.target.closest('summary')){if(section.open)openGroups.delete(heading);else openGroups.add(heading);}});
    section.append(el('summary','',heading));
    for(const [key,label,type,lo,hi,step] of fields){
+    if(heading==='SURFACES & MATERIALS'&&key==='surface_material')
+     section.append(el('div','ux-field-subhead','LAND · CONTINENTS ONLY'));
+    if(heading==='SURFACES & MATERIALS'&&key==='ocean_material')
+     section.append(el('div','ux-field-subhead','OCEAN · WATER ONLY'));
     const wrap=el('label',type==='checkbox'?'check':'field-label',type==='checkbox'?'':label);
     const overridden=Object.hasOwn(over,key)&&over[key]!==null;
     const input=type==='select'?el('select','control compact'):el('input',type==='checkbox'?'':'control compact');
     let value=themeValue(doc,key);input.dataset.themeField=key;
-    if(type==='select'){for(const val of lo){const opt=el('option','',val);opt.value=val;input.append(opt);}input.value=value;}
+    if(type==='select'){
+     for(const val of lo){const opt=el('option','',val);opt.value=val;input.append(opt);}
+     // Preserve an old project override without offering wrong-category
+     // materials in new selections; renderer ignores the invalid assignment.
+     if(!lo.includes(value)){
+      const legacy=el('option','',String(value)+' (legacy · not applicable here)');
+      legacy.value=String(value);legacy.disabled=true;input.append(legacy);
+     }
+     input.value=value;
+    }
     else if(type==='number'){input.type='number';input.min=lo;input.max=hi;input.step=step;input.value=value;}
     else if(type==='checkbox'){input.type='checkbox';input.checked=!!value;}
     else {input.type='color';input.value=colorVal(value);}

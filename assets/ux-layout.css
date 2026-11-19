@@ -192,9 +192,15 @@ button:disabled{cursor:not-allowed}
 .ux-geo-import[open]{margin-bottom:7px}
 .ux-settings-divider{font-size:10px;letter-spacing:1.15px;font-weight:750;color:#94b9d0;padding:9px 3px 4px;border-bottom:1px solid #365064}
 .ux-artistic-divider{margin-top:8px;color:#a2afbe;border-color:#304457}
-.ux-map-boundaries{margin:0;border:1px solid #334e62}
-.ux-map-boundaries-content{display:flex;flex-direction:column;gap:11px;padding:4px 1px 7px}
-.ux-map-boundaries .check{margin:0}
+.ux-map-display{display:flex;flex-direction:column;gap:9px;border:1px solid #334e62;background:#192a38;border-radius:8px;padding:11px}
+.ux-map-display h3{margin:0;color:#b4cadc;font-size:11px;font-weight:700;letter-spacing:.55px}
+.ux-map-boundaries-content{display:flex;flex-direction:column;gap:8px}
+.ux-map-display .check{display:flex;flex-direction:row;align-items:flex-start;gap:9px;margin:0;min-height:30px;color:#d8e9f4;font-size:12px;line-height:1.4;cursor:pointer}
+.ux-map-display .check input{width:16px;height:16px;flex:0 0 16px;margin:2px 0 0;accent-color:#77b7e9}
+.ux-map-display .check span{display:block;min-width:0}
+.ux-map-display .check small{display:block;font-size:11px;line-height:1.35;color:#99b4c8;margin-top:2px}
+#uxMapTextureSlot:empty{display:none}
+#geoPhysicalGroup[hidden]{display:none!important}
 .ux-field-subhead{font-size:10px;letter-spacing:.9px;font-weight:700;color:#8baabd;margin:4px 0 0}
 .ux-export-default-grid{display:flex;flex-direction:column;gap:10px;padding:2px 0 12px}
 .ux-export-default-grid .field-label{display:flex;flex-direction:column;gap:7px;font-size:12px}
@@ -313,3 +319,65 @@ button:disabled{cursor:not-allowed}
 #prodRecoveries .prod-recent{width:auto;flex:1;min-width:0;margin:0;border-color:#476886}
 @media(max-width:600px){#prodRecoverySelected{width:100%;order:3}#prodRecoverySection .prod-recovery-toolbar{gap:7px}}
 
+
+
+/* UI/UX evolution · Stage 1: task-focused project management and onboarding. */
+.ux-project-manager{width:min(760px,96vw);padding:22px;min-height:min(510px,85vh)}
+.ux-project-manager .prod-title{align-items:flex-start;margin-bottom:14px}
+.ux-project-manager #prodProjectsClose{min-width:38px;min-height:36px;flex:0 0 auto}
+.ux-pm-subtitle{font-size:12px;line-height:1.5;color:var(--ux-muted);margin:5px 0 0;max-width:540px}
+.ux-pm-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;background:#0d1c28;border:1px solid #30485c;padding:4px;border-radius:9px;margin:3px 0 16px}
+.ux-project-manager .ux-pm-tabs button{border:1px solid transparent;border-radius:6px;padding:9px 7px;min-height:42px;background:transparent;color:#a6bfd2;font-size:13px;font-weight:600}
+.ux-project-manager .ux-pm-tabs button:hover{background:#1c3446;color:#e8f5ff}
+.ux-project-manager .ux-pm-tabs button.active,.ux-project-manager .ux-pm-tabs button[aria-selected="true"]{background:#264962;border-color:#4a7898;color:#f0f8ff}
+.ux-pm-panel[hidden],.ux-pm-empty[hidden],.ux-pm-count[hidden]{display:none!important}
+.ux-pm-panel{padding:0 2px;min-height:225px}
+.ux-pm-panel-heading{margin:4px 0 12px}
+.ux-project-manager .ux-pm-panel-heading h3{margin:0;font-size:16px;line-height:1.35;color:#e5f2fd}
+.ux-pm-panel-heading p{color:var(--ux-muted);font-size:12px;line-height:1.5;margin:5px 0 0}
+.ux-project-manager .ux-pm-panel>h3{font-size:13px;letter-spacing:.1px;color:#bed4e4;margin:18px 0 8px}
+.ux-pm-actions{margin:12px 0 18px;display:flex;flex-wrap:wrap;gap:9px}
+.ux-pm-actions button{min-height:38px;padding:9px 12px}
+.ux-pm-count{font-size:10px;font-weight:700;line-height:1.4;min-width:19px;padding:2px 6px;margin-left:4px;border-radius:99px;color:#e3f6ff;background:#3a607b}
+.ux-pm-empty{border:1px dashed #415b70;background:#162737;border-radius:9px;padding:18px 16px;margin:8px 0;color:#b9cedf;font-size:12px;line-height:1.5}
+.ux-pm-empty strong{display:block;color:#e2eff8;font-size:14px;font-weight:650}
+.ux-pm-empty p{font-size:12px;color:#a7bece;line-height:1.5;margin:5px 0 12px}
+.ux-pm-empty button{min-height:36px;background:#224562;border-color:#43799b}
+.ux-project-manager .prod-recent{min-height:42px;line-height:1.4;padding:10px 12px;border:1px solid #334f63;background:#182c3d;border-radius:7px}
+.ux-project-manager .prod-recent:focus-visible{outline:2px solid #81caff;outline-offset:2px}
+.ux-project-manager #prodRecoveries .prod-recent{min-height:42px}
+.ux-project-manager #prodRecoverySection{margin-top:4px}
+.ux-scene-primary{margin:1px 0 7px}
+.ux-scene-primary button{display:block;width:100%;background:#224d69;border-color:#497b9c;color:#edf7ff;font-weight:650;min-height:39px;text-align:left;padding:8px 12px}
+.ux-scene-primary button:hover{background:#2a5c7d}
+.ux-scene-actions .mini-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;width:100%}
+.ux-scene-actions .mini-actions button{min-width:0;min-height:32px;font-size:11px;line-height:1.2;padding:5px 4px}
+.ux-scene-actions #delete:not(:disabled){border-color:#7c555b;color:#f0c9c8}
+.ux-empty-state{border:1px dashed #38556b;border-radius:9px;background:#172938;padding:14px 13px;display:flex;flex-direction:column;align-items:flex-start;gap:7px;font-size:12px;line-height:1.5;color:#aac2d4}
+.ux-empty-state strong{font-size:13px;font-weight:650;color:#e7f4fd}
+.ux-empty-state p{margin:0;color:#a6bed0}
+.ux-empty-state button{background:#224561;border:1px solid #456f8e;color:#e8f5ff;min-height:34px;padding:6px 10px;font-size:12px}
+.ux-empty-actions{display:flex;flex-wrap:wrap;gap:6px}
+.ux-scene-empty{margin:10px 8px}
+#inspector>.ux-empty-state{margin-top:12px}
+#countryResults .ux-geo-start{margin:0}
+.country-result.geo-result{display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:7px;row-gap:8px;padding:10px 9px}
+.country-result.geo-result>.geo-tag{grid-column:1;grid-row:1;align-self:start;margin-top:3px}
+.country-result.geo-result>.name{grid-column:2;grid-row:1;min-width:0;overflow-wrap:anywhere}
+.country-result.geo-result>.name strong{display:block;color:#e5f2fc;font-size:12px;line-height:1.35}
+.country-result.geo-result>.name small{display:block;color:#9eb8cb;line-height:1.4;font-size:11px;margin-top:3px}
+.country-result .ux-geo-row-actions{grid-column:1/-1;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px}
+.country-result .ux-geo-row-actions button{min-width:45px;min-height:31px;font-size:11px;padding:5px 8px}
+.country-result .ux-geo-row-actions button:last-child:not(.ux-geo-fit){background:#255474;border-color:#4b7b9c;color:#e4f4ff}
+@media(max-width:620px){
+ .ux-project-manager{padding:14px;max-height:94vh;min-height:0}
+ .ux-pm-tabs{gap:3px}
+ .ux-project-manager .ux-pm-tabs button{padding:9px 4px;font-size:12px}
+ .ux-pm-actions button{flex:1;min-width:135px}
+}
+
+
+.tree-row .node-actions button{display:inline-grid;place-items:center;min-width:28px;min-height:30px;border-radius:5px}
+.tree-row .node-actions svg{width:17px;height:17px;display:block;pointer-events:none}
+.tree-row .node-actions button:focus-visible{outline:2px solid #81caff;outline-offset:1px}
+.tree-row .node-actions button.off{color:#6d8295}

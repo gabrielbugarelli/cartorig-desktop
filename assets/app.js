@@ -69,7 +69,7 @@ function bindTabs(){
   if(next){e.preventDefault();for(const item of $('layerTree').querySelectorAll('[role="treeitem"]'))item.tabIndex=-1;next.tabIndex=0;next.focus();}
  });
 }
-function insertNode(type,fields){let o=madeObject(type,fields?.name||type,fields||{});if(exec({type:'CreateObject',object:o}))setTab('layers');return o;}
+function insertNode(type,fields){let o=madeObject(type,fields?.name||type,fields||{});if(exec({type:'CreateObject',object:o})){setTab('layers');setRightTab('inspector');if(window.CartoRigNavigation?.compact())window.CartoRigNavigation.setRight(true);}return o;}
 function addCountry(iso){let c=byIso.get(iso);if(!c)return;return addGeoEntry({id:c.iso,name:c.name,type:'Country',source_id:'ne_admin0_110m',geometry_type:'Polygon',geometry:c.geometry});}
 function addGeoEntry(entry,mode='Marker'){
  if(entry.geometry_type==='Unavailable'||!entry.geometry && entry.type==='State'){showToast('Polygon unavailable. Import a real Admin 1 GeoJSON dataset first.',true);return null;}
@@ -106,8 +106,12 @@ function renderCountryList({append=false}={}){
  count.textContent=total?`${displayed} of ${total} locations`:'0 locations';
  if(!append&&!total){
   const help=document.createElement('div');help.className='help';
-  help.textContent='No matches';
-  root.append(help);return;
+  help.className='ux-empty-state';
+  const title=document.createElement('strong');title.textContent='No matching places';
+  const info=document.createElement('p');info.textContent='Try another name or remove the geographic filters.';
+  const clear=document.createElement('button');clear.type='button';clear.textContent='Clear search and filters';
+  clear.onclick=()=>{$('countrySearch').value='';$('continent').value='';$('geoType').value='All';updateCountryFilter();$('geoCountry').value='';queueCountrySearch(true);};
+  help.append(title,info,clear);root.append(help);return;
  }
  // Avoid a full DOM replacement on pagination; retain scroll position.
  if(append)root.querySelector('.geo-more')?.remove();
@@ -123,11 +127,13 @@ function renderCountryList({append=false}={}){
   const disambig=(matches.get(nameKey)||0)>1?` · Source ID ${e.id}`:'';
   parent.textContent=geoDisplayParent(e.parent||'World')+' · '+(e.geometry_type==='Unavailable'?'Polygon unavailable':e.geometry_type||'Polygon')+disambig;
   body.append(name,parent);
-  const fit=document.createElement('button');fit.textContent='⌕';fit.title='Fit location';fit.disabled=e.geometry_type==='Unavailable';fit.onclick=()=>fitGeoEntry(e);
-  row.append(tag,body,fit);
-  const button=(text,title,callback,disabled=false)=>{let b=document.createElement('button');b.textContent=text;b.title=title;b.disabled=disabled;b.onclick=callback;row.append(b);};
-  if(e.type==='City'){button('M+','Add city marker',()=>addGeoEntry(e,'Marker'));button('T+','Add city label',()=>addGeoEntry(e,'Label'));}
-  else button('+','Add independent Region',()=>addGeoEntry(e),e.geometry_type==='Unavailable');
+  const fit=document.createElement('button');fit.textContent='View';fit.className='ux-geo-fit';fit.title='Center the map on '+geoDisplayName(e);fit.setAttribute('aria-label','View '+geoDisplayName(e)+' on map');fit.disabled=e.geometry_type==='Unavailable';fit.onclick=()=>fitGeoEntry(e);
+  const actions=document.createElement('div');actions.className='ux-geo-row-actions';
+  actions.append(fit);
+  const button=(text,title,callback,disabled=false)=>{let b=document.createElement('button');b.type='button';b.textContent=text;b.title=title;b.setAttribute('aria-label',title+': '+geoDisplayName(e));b.disabled=disabled;b.onclick=callback;actions.append(b);};
+  if(e.type==='City'){button('Marker','Add city marker',()=>addGeoEntry(e,'Marker'));button('Text','Add city label',()=>addGeoEntry(e,'Label'));}
+  else button('Add','Add region to scene',()=>addGeoEntry(e),e.geometry_type==='Unavailable');
+  row.append(tag,body,actions);
   fragment.append(row);
  }
  if(hasMore){
@@ -237,17 +243,40 @@ async function importGeoFile(file){
  }catch(e){showToast('GeoJSON import failed: '+e.message,true);status('GeoJSON import rejected');}
 }
 function iconFor(type){return {Shape:'⬡',WorldMap:'▨',Grid:'⌗',Borders:'⬡',Region:'◈',Route:'↗',Label:'T',Marker:'◉',Group:'▣'}[type]||'◻';}
+// Consistent SVG controls instead of opaque Unicode symbols in the layer tree.
+function layerActionIcon(name){
+ const fragments={
+  eye:'<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+  'eye-off':'<path d="M3 3l18 18M10.6 5.1A11 11 0 0 1 12 5c6.4 0 10 7 10 7a16 16 0 0 1-3.2 3.8M6.1 6.4C3.5 8.3 2 12 2 12s3.6 7 10 7c1.7 0 3.3-.5 4.6-1.2"/><path d="M10 10a3 3 0 0 0 4 4"/>',
+  lock:'<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+  unlock:'<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 7-2.7"/>'
+ };
+ const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+ svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('fill','none');
+ svg.setAttribute('stroke','currentColor');svg.setAttribute('stroke-width','1.8');
+ svg.setAttribute('stroke-linecap','round');svg.setAttribute('stroke-linejoin','round');
+ svg.setAttribute('aria-hidden','true');svg.innerHTML=fragments[name];
+ return svg;
+}
 function renderTree(){let root=$('layerTree'),focused=document.activeElement?.closest?.('[role=treeitem]')?.dataset.id;root.replaceChildren();let doc=store.doc,q=norm($('layerSearch').value);let shown=new Set(store.selection);
  function matches(id){let o=doc.objects[id];return !q||norm(o.name).includes(q)||norm(o.type).includes(q)||(o.type==='Group'&&o.children.some(matches));}
  function add(id,depth){let o=doc.objects[id];if(!o||!matches(id))return;let row=document.createElement('div');row.className='tree-row'+(shown.has(id)?' selected':'');row.dataset.id=id;row.draggable=!isLocked(doc,id)&&!['WorldMap','Grid','Borders'].includes(o.type);row.style.paddingLeft=(6+depth*17)+'px';row.setAttribute('role','treeitem');row.setAttribute('aria-selected',String(shown.has(id)));row.tabIndex=shown.has(id)?0:-1;row.setAttribute('aria-level',String(depth+1));if(o.type==='Group')row.setAttribute('aria-expanded',String(expanded.has(id)));
  let exp=document.createElement('button');exp.className='expand';exp.textContent=o.type==='Group'?(expanded.has(id)?'▾':'▸'):' ';exp.setAttribute('aria-label','Expand or collapse group');exp.disabled=o.type!=='Group';exp.onclick=e=>{e.stopPropagation();expanded.has(id)?expanded.delete(id):expanded.add(id);renderTree();};
  let icon=document.createElement('span');icon.className='type-icon';icon.textContent=iconFor(o.type);let name=document.createElement('span');name.className='node-name';name.textContent=o.name;name.title=o.type+' · '+o.name;
- let actions=document.createElement('span');actions.className='node-actions';let eye=document.createElement('button');eye.textContent=o.visible?'◉':'◌';eye.className=o.visible?'':'off';eye.title=o.visible?'Hide':'Show';eye.setAttribute('aria-label',eye.title+' '+o.name);eye.onclick=e=>{e.stopPropagation();if(e.altKey){soloId=soloId===id?null:id;drawPreview();showToast(soloId?'Solo preview (not exported)':'Solo off');}else exec({type:'SetVisibility',id,value:!o.visible});};let lock=document.createElement('button');lock.textContent=o.locked?'▣':'▢';lock.title=o.locked?'Unlock':'Lock';lock.setAttribute('aria-label',lock.title+' '+o.name);lock.onclick=e=>{e.stopPropagation();exec({type:'SetLock',id,value:!o.locked});};actions.append(eye,lock);row.append(exp,icon,name,actions);
+ let actions=document.createElement('span');actions.className='node-actions';let eye=document.createElement('button');eye.append(layerActionIcon(o.visible?'eye':'eye-off'));eye.className=o.visible?'':'off';eye.title=o.visible?'Hide':'Show';eye.setAttribute('aria-label',eye.title+' '+o.name);eye.onclick=e=>{e.stopPropagation();if(e.altKey){soloId=soloId===id?null:id;drawPreview();showToast(soloId?'Solo preview (not exported)':'Solo off');}else exec({type:'SetVisibility',id,value:!o.visible});};let lock=document.createElement('button');lock.append(layerActionIcon(o.locked?'lock':'unlock'));lock.title=o.locked?'Unlock':'Lock';lock.setAttribute('aria-label',lock.title+' '+o.name);lock.onclick=e=>{e.stopPropagation();exec({type:'SetLock',id,value:!o.locked});};actions.append(eye,lock);row.append(exp,icon,name,actions);
  row.onclick=e=>{if(e.shiftKey&&store.selection.length){const all=treeIds(doc).reverse(),last=all.indexOf(store.selection.at(-1)),curr=all.indexOf(id);let range=all.slice(Math.min(last,curr),Math.max(last,curr)+1);select([...store.selection,...range]);}else if(e.ctrlKey||e.metaKey){select(shown.has(id)?store.selection.filter(x=>x!==id):[...store.selection,id]);}else select([id]);setRightTab('inspector');};
  row.ondblclick=e=>{if(e.target.closest('button'))return;let next=prompt('Rename object',o.name);if(next?.trim())exec({type:'RenameObject',id,name:next});};
  row.ondragstart=e=>{e.dataTransfer.setData('text/plain',id);e.dataTransfer.effectAllowed='move';};row.ondragover=e=>{e.preventDefault();const rel=(e.clientY-row.getBoundingClientRect().top)/row.getBoundingClientRect().height;row.dataset.dropzone=o.type==='Group'&&rel>.3&&rel<.7?'inside':rel<.5?'before':'after';row.classList.add('drag-target');};row.ondragleave=()=>{row.classList.remove('drag-target');delete row.dataset.dropzone;};row.ondrop=e=>{e.preventDefault();row.classList.remove('drag-target');let from=e.dataTransfer.getData('text/plain');if(!from||from===id)return;let parent,index,zone=row.dataset.dropzone||'after';delete row.dataset.dropzone;if(zone==='inside'&&o.type==='Group'){parent=id;index=o.children.length;expanded.add(id);}else{parent=o.parent_id;index=(parent?doc.objects[parent].children:doc.scene.root_ids).indexOf(id)+(zone==='after'?1:0);}exec({type:'MoveObject',id:from,parent_id:parent,index});};
  root.append(row);if(o.type==='Group'&&(expanded.has(id)||q)){for(let child of [...o.children].reverse())add(child,depth+1);}}
  for(let id of [...doc.scene.root_ids].reverse())add(id,0);
+ if(!root.querySelector('[role="treeitem"]')&&q){
+  const empty=document.createElement('div');empty.className='ux-empty-state ux-scene-empty';
+  const title=document.createElement('strong');title.textContent='No matching layers';
+  const hint=document.createElement('p');hint.textContent='Try another name or clear the layer search.';
+  const clear=document.createElement('button');clear.type='button';clear.textContent='Clear search';
+  clear.onclick=()=>{$('layerSearch').value='';renderTree();$('layerSearch').focus();};
+  empty.append(title,hint,clear);root.append(empty);
+ }
  if(focused){const previous=[...root.querySelectorAll('[role=treeitem]')].find(n=>n.dataset.id===focused);if(previous){previous.tabIndex=0;previous.focus({preventScroll:true});}}
  if(!root.querySelector('[tabindex="0"]')){const first=root.querySelector('[role=treeitem]');if(first)first.tabIndex=0;}
 }
@@ -256,7 +285,14 @@ function createField(root,label,value,onChange,{type='text',min,max,step,disable
 function createCheck(root,label,checked,onChange,disabled=false){let wrap=document.createElement('label');wrap.className='check';let input=document.createElement('input');input.type='checkbox';input.checked=!!checked;input.disabled=disabled;input.onchange=()=>onChange(input.checked);wrap.append(input,document.createTextNode(label));root.append(wrap);return input;}
 function inspectorGroup(root,title){let group=document.createElement('div');group.className='inspector-group';let h=document.createElement('h3');h.textContent=title;group.append(h);root.append(group);return group;}
 const inspectorAdvancedOpen=new Set();
-function renderInspector(){let root=$('inspector');root.replaceChildren();let ids=store.selection,doc=store.doc;$('selectionCount').textContent=ids.length>1?ids.length+' selected':'';if(!ids.length)return;
+function renderInspector(){let root=$('inspector');root.replaceChildren();let ids=store.selection,doc=store.doc;$('selectionCount').textContent=ids.length>1?ids.length+' selected':'';if(!ids.length){
+ const empty=document.createElement('div');empty.className='ux-empty-state';
+ const title=document.createElement('strong');title.textContent='Nothing selected';
+ const hint=document.createElement('p');hint.textContent='Choose a layer in Scene or click an object on the map to edit its properties.';
+ const action=document.createElement('button');action.type='button';action.textContent='Browse geography';
+ action.onclick=()=>{setTab('geography');$('countrySearch').focus();};
+ empty.append(title,hint,action);root.append(empty);return;
+}
  const target=doc.objects[ids[0]],multi=ids.length>1,locked=ids.some(id=>isLocked(doc,id));
  const objHeader=document.createElement('div');objHeader.className='ux-inspector-object';
  const objType=document.createElement('span');objType.className='ux-inspector-type';objType.textContent=multi?'MULTIPLE OBJECTS':target.type;
@@ -314,7 +350,29 @@ function renderInspector(){let root=$('inspector');root.replaceChildren();let id
   representative:o=>{let g=o.embedded_geometry||(o.region_kind==='Country'?countryForRegion(o,countries,geo,store.doc.camera.zoom)?.geometry:geo?.lookup?.(o.source?.dataset_id,o.source?.feature_id)?.geometry);if(!g)return null;let b=featureFocusBounds(g),mx=(b.minx+b.maxx)/2,my=(b.miny+b.maxy)/2;for(let i=0;i<45;i++)for(let j=0;j<45;j++){let lon=b.minx+(b.maxx-b.minx)*(i===0?.5:i/45),lat=b.miny+(b.maxy-b.miny)*(j===0?.5:j/45);lon=((lon+180)%360+360)%360-180;if(pointInside(lon,lat,{geometry:g}))return {lon,lat};}return null;},
   editPath:()=>{setTool('select');editHandles=true;editOffset=false;showToast('Drag a blue handle to edit. Esc exits editing.');},
   editOffset:()=>{setTool('select');editHandles=true;editOffset=true;showToast('Drag the marker handle to change its visual offset.');},
-  convertShape:(o,space)=>{if(space===o.coordinate_space)return;let pts=o.points.map(pt=>space==='screen'?(()=>{let [x,y]=project(doc,pt.lon,pt.lat,canvas.width,canvas.height);return {x:clamp(x/canvas.width,0,1),y:clamp(y/canvas.height,0,1)};})():(()=>{let [lon,lat]=unproject(doc,pt.x*canvas.width,pt.y*canvas.height,canvas.width,canvas.height);return {lon,lat};})());exec({type:'SetProperties',id:o.id,values:{coordinate_space:space,points:pts}});},
+  convertShape:(o,space)=>{if(space===o.coordinate_space)return;let pts=o.points.map(pt=>space==='screen'?(()=>{let [x,y]=project(doc,pt.lon,pt.lat,canvas.width,canvas.height);return {x:clamp(x/canvas.width,0,1),y:clamp(y/canvas.height,0,1)};})():(()=>{let [lon,lat]=unproject(doc,pt.x*canvas.width,pt.y*canvas.height,canvas.width,canvas.height);return {lon,lat};})());
+   // A legacy pinned box must become an actual second vertex when changing
+   // coordinate spaces, otherwise two different position models compete.
+   const values={coordinate_space:space,points:pts};
+   if(o.shape_kind==='Callout'&&o.callout_box){
+    const pin=o.callout_box;
+    if(space==='screen')pts[pts.length-1]={x:pin.x,y:pin.y};
+    else{const [lon,lat]=unproject(doc,pin.x*canvas.width,pin.y*canvas.height,canvas.width,canvas.height);pts[pts.length-1]={lon:clamp(lon,-180,180),lat:clamp(lat,-90,90)};}
+    values.callout_box=null;
+   }
+   exec({type:'SetProperties',id:o.id,values});},
+  setCalloutBoxMode:(o,mode)=>{
+   if(o.shape_kind!=='Callout'||o.coordinate_space!=='geo')return;
+   const points=o.points.map(p=>({...p}));
+   if(mode==='geo'&&o.callout_box){
+    const [lon,lat]=unproject(doc,o.callout_box.x*canvas.width,o.callout_box.y*canvas.height,canvas.width,canvas.height);
+    points[points.length-1]={lon:clamp(lon,-180,180),lat:clamp(lat,-90,90)};
+    exec({type:'SetProperties',id:o.id,values:{points,callout_box:null}});
+   }else if(mode==='screen'&&!o.callout_box){
+    const p=points.at(-1),[x,y]=project(doc,p.lon,p.lat,canvas.width,canvas.height);
+    exec({type:'SetProperties',id:o.id,values:{callout_box:{x:clamp(x/canvas.width,0,1),y:clamp(y/canvas.height,0,1)}}});
+   }
+  },
   geoPoint:(anchor,screen)=>{if(screen){let [lon,lat]=unproject(doc,screen.x*canvas.width,screen.y*canvas.height,canvas.width,canvas.height);return {lon:clamp(lon,-180,180),lat:clamp(lat,-90,90)};}let [x,y]=project(doc,anchor.lon,anchor.lat,canvas.width,canvas.height);return {x:clamp(x/canvas.width,0,1),y:clamp(y/canvas.height,0,1)};}
  });
  if(['Region','Route','Marker','Label','Shape','Group'].includes(target.type)){
@@ -416,7 +474,9 @@ function commitCreativeDraft(){if(!creativeDraft)return false;const d=creativeDr
  if(d.type==='Route'&&pts.length>=2){let from=pts[0],to=pts.at(-1);if(from.lon===to.lon&&from.lat===to.lat)return false;insertNode('Route',{name:'Route',from,to,path_type:d.path_type,curvature:0,waypoints:d.path_type==='Custom'?pts.slice(1,-1):[],style:{stroke_color:'#efb95c',stroke_width:3,stroke_style:'Solid',arrowheads:'End'}});setTool('select');return true;}
  if(d.type==='Shape'&&pts.length>=(d.shape_kind==='Polygon'?3:2)){
   let fields={name:d.shape_kind,shape_kind:d.shape_kind,coordinate_space:d.coordinate_space,points:pts,style:{stroke_color:'#eab766',stroke_width:3,stroke_style:'Solid',fill_color:'#eab76644',arrowheads:'End'},editorial:true};
-  if(d.shape_kind==='Callout'){fields.text='Callout';if(d.coordinate_space==='geo'){fields.callout_box={x:creativeCursor?.x/canvas.width||.65,y:creativeCursor?.y/canvas.height||.45};}}
+  // For a new Callout, both clicks are real vertices: the anchor and the
+  // box location. No screen-pinned callout_box is created implicitly.
+  if(d.shape_kind==='Callout')fields.text='Callout';
   insertNode('Shape',fields);setTool('select');return true;
  }return false;}
 function creativePreviewObject(doc){if(!creativeDraft?.points?.length)return null;let d=creativeDraft,pts=[...d.points],cursor=creativeCursor;
@@ -467,7 +527,11 @@ function setupCanvas(){canvas.addEventListener('dblclick',e=>{const p=pointerXY(
  canvas.addEventListener('pointermove',e=>{let p=pointerXY(e),[lon,lat]=unproject(store.doc,p.x,p.y,canvas.width,canvas.height);$('cursorCoords').textContent=lat.toFixed(2)+'°, '+lon.toFixed(2)+'°';if(creativeDraft&&!drag){creativeCursor=p;drawPreview();}if(!drag)return;let dx=p.x-drag.start.x,dy=p.y-drag.start.y;if(Math.hypot(dx,dy)>4)drag.moved=true;if(!drag.moved)return;
  if(drag.handle){let {id,index}=drag.handle,obj=clone(drag.originalObject),kind=obj.type,point=creativePoint(p.x,p.y,kind==='Shape'?obj.coordinate_space:obj.type==='Label'&&obj.position_mode==='screen'?'screen':'geo');
   if(kind==='Route'){if(index===0)obj.from=point;else if(index===(obj.waypoints?.length||0)+1)obj.to=point;else obj.waypoints[index-1]=point;}
-  else if(kind==='Shape')obj.points[index]=point;
+  else if(kind==='Shape'){
+   // Legacy explicit screen-pinned Callouts expose a draggable box handle.
+   if(obj.shape_kind==='Callout'&&index===obj.points.length-1&&obj.callout_box)obj.callout_box={x:clamp(p.x/canvas.width,0,1),y:clamp(p.y/canvas.height,0,1)};
+   else obj.points[index]=point;
+  }
   else if(kind==='Label'&&obj.position_mode==='screen')obj.screen_pos=point;
   else if(kind==='Marker'&&editOffset){let [x,y]=project(store.doc,obj.anchor.lon,obj.anchor.lat,canvas.width,canvas.height),factor=canvas.height/1080;obj.offset_x=(p.x-x)/factor;obj.offset_y=(p.y-y)/factor;}
   else if(kind==='Label'||kind==='Marker')obj.anchor=point;
@@ -478,7 +542,7 @@ function setupCanvas(){canvas.addEventListener('dblclick',e=>{const p=pointerXY(
  else if(tool==='pan'||e.buttons===4){let k=scaleFor(store.doc,canvas.width,canvas.height),camera=drag.originalCamera;dragPreview={camera:{center_lon:clamp(camera.center_lon-dx/k,-180,180),center_lat:clamp(camera.center_lat+dy/k,-90,90)}};drawPreview();}
  });
  canvas.addEventListener('pointerup',e=>{if(!drag)return;let p=pointerXY(e),action=drag;drag=null;wrap.classList.remove('dragging');if(action.freehand){creativeDraft.points=action.freehand;if(creativeDraft.points.length>=2)commitCreativeDraft();else creativeDraft=null;}
- else if(action.moved&&dragPreview){let trans=dragPreview;dragPreview=null;if(trans.camera)exec({type:'SetCameraPose',pose:trans.camera});else if(trans.object){let origin=store.doc.objects[trans.id],next=trans.object;let fields={};for(let key of ['from','to','waypoints','points','anchor','screen_pos','offset_x','offset_y'])if(JSON.stringify(origin[key])!==JSON.stringify(next[key]))fields[key]=next[key];if(Object.keys(fields).length)exec({type:'SetProperties',id:trans.id,values:fields});}else if(trans.anchor)exec({type:'SetProperty',id:trans.id,path:'anchor',value:trans.anchor});}
+ else if(action.moved&&dragPreview){let trans=dragPreview;dragPreview=null;if(trans.camera)exec({type:'SetCameraPose',pose:trans.camera});else if(trans.object){let origin=store.doc.objects[trans.id],next=trans.object;let fields={};for(let key of ['from','to','waypoints','points','callout_box','anchor','screen_pos','offset_x','offset_y'])if(JSON.stringify(origin[key])!==JSON.stringify(next[key]))fields[key]=next[key];if(Object.keys(fields).length)exec({type:'SetProperties',id:trans.id,values:fields});}else if(trans.anchor)exec({type:'SetProperty',id:trans.id,path:'anchor',value:trans.anchor});}
  else if(!action.moved&&e.button===0)canvasClick(p.x,p.y,e);drawPreview();});
  canvas.addEventListener('pointercancel',()=>{drag=null;dragPreview=null;wrap.classList.remove('dragging');drawPreview();});
  canvas.addEventListener('wheel',e=>{e.preventDefault();let p=pointerXY(e),[lon1,lat1]=unproject(store.doc,p.x,p.y,canvas.width,canvas.height);let zoom=clamp(store.doc.camera.zoom*(e.deltaY<0?1.17:1/1.17),.35,80);let draft=clone(store.doc);draft.camera.zoom=zoom;let [lon2,lat2]=unproject(draft,p.x,p.y,canvas.width,canvas.height);exec({type:'SetCameraPose',pose:{zoom,center_lon:clamp(store.doc.camera.center_lon+lon1-lon2,-180,180),center_lat:clamp(store.doc.camera.center_lat+lat1-lat2,-90,90)}});},{passive:false});}
@@ -524,6 +588,7 @@ function bindButtons(){
  $('ungroup').onclick=()=>{if(store.selection.length===1)exec({type:'Ungroup',id:store.selection[0]});};$('centerView').onclick=fitSelection;$('worldView').onclick=()=>exec({type:'SetCameraPose',pose:{center_lon:0,center_lat:10,zoom:1,bearing:0}});$('zoomIn').onclick=()=>exec({type:'SetCameraPose',pose:{zoom:store.doc.camera.zoom*1.4}});$('zoomOut').onclick=()=>exec({type:'SetCameraPose',pose:{zoom:store.doc.camera.zoom/1.4}});
  $('toolSelect').onclick=()=>setTool('select');$('toolPan').onclick=()=>setTool('pan');$('toolRegion').onclick=()=>setTool('region');$('toolRoute').onclick=()=>setTool('route');$('toolLabel').onclick=()=>setTool('label');$('toolMarker').onclick=()=>setTool('marker');$('toolShape').onclick=()=>setTool('shape');
  $('creativeAssetFile').onchange=e=>{const id=e.target.dataset.target;if(e.target.files[0])installCreativeIcon(e.target.files[0],id);e.target.value='';};
+ $('addPlaceFromScene').onclick=()=>{setTab('geography');$('countrySearch').focus();};
  $('countrySearch').oninput=()=>queueCountrySearch();$('continent').onchange=()=>{updateCountryFilter();queueCountrySearch(true);};$('geoCountry').onchange=()=>queueCountrySearch(true);$('geoType').onchange=()=>queueCountrySearch(true);$('importDataset').onclick=()=>$('datasetFile').click();$('datasetFile').onchange=async e=>{await importGeoFile(e.target.files?.[0]);e.target.value='';};$('layerSearch').oninput=renderTree;
  document.querySelectorAll('[data-style]').forEach(btn=>btn.onclick=()=>exec({type:'ApplyStyle',id:btn.dataset.style}));$('showBrazilStates').onchange=e=>exec({type:'SetThemeProperty',key:'show_state_boundaries',value:e.target.checked});for(let typ of ['River','Lake','Coastline'])$('show'+typ+'s').onchange=e=>exec({type:'SetThemeProperty',key:`show_${typ.toLowerCase()}s`,value:e.target.checked});
  $('resolution').onchange=e=>{let [width,height]=e.target.value.split('x').map(Number);exec({type:'SetCanvas',canvas:{width,height}});};$('transparent').onchange=e=>exec({type:'SetCanvas',canvas:{transparent:e.target.checked}});$('exportImage').onclick=exportImage;$('exportLayers').onclick=exportLayers;

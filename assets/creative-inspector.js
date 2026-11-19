@@ -1,6 +1,7 @@
 /* CartoRig 1.3 inspector — editors for static creative objects. MIT. */
 import {MARKER_SYMBOLS,SHAPES,ROUTE_TYPES,geoDistance,resolveLink} from './creative-engine.js';
 import {drawCreative} from './creative-renderer.js';
+import {resolveStyle} from './style-resolver.js';
 export function browserFontAvailable(family){
  if(typeof document==='undefined')return true;
  const name=String(family||'').replace(/["\\]/g,'');if(['sans-serif','serif','monospace','system-ui'].includes(name.toLowerCase()))return true;
@@ -10,7 +11,7 @@ export function browserFontAvailable(family){
   ctx.font=`24px "${name}",${fallback}`;return Math.abs(ctx.measureText(sample).width-base)>.2;
  });
 }
-export function creativeInspector(root,obj,doc,{exec,field,check,group,locked,toast,editText,importImage,editPath,geoPoint,convertShape,editOffset,findCities,representative}){
+export function creativeInspector(root,obj,doc,{exec,field,check,group,locked,toast,editText,importImage,editPath,geoPoint,convertShape,setCalloutBoxMode,editOffset,findCities,representative}){
  const id=obj.id,update=(path,value)=>exec({type:'SetProperty',id,path,value}),style=(key,v)=>update('style.'+key,v);
  function choose(where,label,choices,value,change){let block=document.createElement('label');block.className='field-label';block.textContent=label;let el=document.createElement('select');el.className='control compact';el.disabled=locked;for(let [val,text] of choices.map(x=>Array.isArray(x)?x:[x,x]))el.add(new Option(text,val));el.value=value;el.onchange=()=>change(el.value);block.append(el);where.append(block);return el;}
  function button(where,label,fn){let el=document.createElement('button');el.textContent=label;el.className='control compact';el.disabled=locked;el.onclick=fn;where.append(el);return el;}
@@ -64,8 +65,17 @@ export function creativeInspector(root,obj,doc,{exec,field,check,group,locked,to
  }
  if(obj.type==='Shape'){
   let g=group(root,'DRAWING & ANNOTATION');
-  choose(g,'Shape kind',SHAPES,obj.shape_kind,v=>update('shape_kind',v));choose(g,'Coordinate space',[['geo','Geographic (WGS84)'],['screen','Screen relative']],obj.coordinate_space,v=>convertShape(obj,v));editStyle(g,'#eab766');color(g,'Fill','fill_color','#a9653d');color(g,'Text color','text_color','#ffffff');
+  choose(g,'Shape kind',SHAPES,obj.shape_kind,v=>update('shape_kind',v));choose(g,'Coordinate space',[['geo','Geographic (WGS84)'],['screen','Screen relative']],obj.coordinate_space,v=>convertShape(obj,v));editStyle(g,'#eab766');color(g,'Fill','fill_color','#a9653d');
+  // Match the displayed swatch to the effective renderer color, including
+  // inherited Callout colors in older .cartorig projects.
+  color(g,'Text color','text_color',resolveStyle(doc,obj).text_color||'#ffffff');
   if(obj.shape_kind==='Callout'){textarea(g,'Callout text',obj.text||'',v=>update('text',v));color(g,'Box background','background_color','#123049');
+   if(obj.coordinate_space==='geo'){
+    choose(g,'Text box follows',[['geo','Map (recommended)'],['screen','Screen (fixed position)']],obj.callout_box?'screen':'geo',mode=>setCalloutBoxMode(obj,mode));
+    const hint=document.createElement('small');
+    hint.textContent=obj.callout_box?'The box stays in place as the map moves. Switch to Map to attach it to the second geographic point.':'The two clicks are geographic points. The box moves and scales with the map.';
+    g.append(hint);
+   }
    choose(g,'Linked marker',[['','Free geographic point'],...Object.values(doc.objects).filter(x=>x.type==='Marker').map(x=>[x.id,x.name])],obj.linked_object_id||'',v=>update('linked_object_id',v||null));
    if(obj.callout_box){for(let axis of ['x','y'])field(g,`Screen box ${axis}`,obj.callout_box[axis],v=>update('callout_box.'+axis,v),{type:'number',min:0,max:1,step:.01,disabled:locked});}
   }

@@ -8,11 +8,23 @@ export const MATERIAL_IDS=Object.freeze([
  'marine_noise','marine_waves','deep_sea','document_wear','tactical_noise','dark_grain',
  'mineral_grit','dry_brush','linen'
 ]);
+// Material assets have an explicit geographic purpose. "none" belongs to
+// both controls; all other assets can only be selected for their own surface.
+// Existing .cartorig files may contain a wrong-category override, so render
+// guards must also enforce this classification (without deleting user data).
+export const OCEAN_MATERIAL_IDS=Object.freeze(['none','marine_noise','marine_waves','deep_sea']);
+export const LAND_MATERIAL_IDS=Object.freeze(MATERIAL_IDS.filter(id=>!OCEAN_MATERIAL_IDS.includes(id)||id==='none'));
+export const isMaterialForSurface=(id,surface)=>(
+ surface==='ocean'?OCEAN_MATERIAL_IDS.includes(id):
+ surface==='land'?LAND_MATERIAL_IDS.includes(id):false
+);
 export const RELIEF_PROFILES=Object.freeze(['none','soft','natural','rugged','engraved','bathymetric','dark']);
 // [family, support, land material, ocean material, print finish, relief profile, support/land/ocean/finish/relief strengths]
 const RECIPE_ROWS=Object.freeze({
  dark:['Dark / Cinematic','dark_grain','mineral_grit','deep_sea','ink_grain','dark',.36,.28,.27,.12,.14],
- atlas:['Paper / Parchment','paper_clean','paper_fibrous','marine_noise','ink_grain','soft',.49,.34,.22,.23,.09],
+ // Atlas uses fibrous parchment on land and a distinct, understated
+ // water-specific wave pattern at sea. Never put the paper texture on water.
+ atlas:['Paper / Parchment','paper_clean','paper_fibrous','marine_waves','ink_grain','soft',.49,.34,.12,.23,.09],
  tactical:['Documentary / Tactical','archival_sheet','tactical_noise','marine_noise','print_plate','soft',.30,.45,.20,.31,.10],
  relief:['Terrain / Relief','none','mineral_grit','marine_noise','none','natural',0,.24,.15,0,.34],
  satellite:['Terrain / Relief','none','mineral_grit','marine_noise','none','natural',0,.11,.10,0,.09],

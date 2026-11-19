@@ -94,12 +94,15 @@ with sync_playwright() as p:
  with page.expect_download() as d:page.locator('#saveAsProject').click()
  assert d.value.suggested_filename.endswith('.cartorig')
  assert page.evaluate('window.__saves.length')==1
- # Physical feature controls appear when dataset kinds are installed.
+ # Map display combines the active texture and state-boundary toggles.
+ # Unavailable physical datasets are retained internally, not shown as controls.
  page.locator('#tabStyles').click();page.locator('#style14ModeCustomize').click()
  assert page.locator('#uxMapBoundaries').count()==1
- page.evaluate('document.querySelector("#showRivers").disabled=false')
- if not page.locator('#uxMapBoundaries').evaluate('(x)=>x.open'):page.locator('#uxMapBoundaries > summary').click()
- assert page.locator('#geoPhysicalGroup').is_visible()
+ assert page.locator('#uxMapDisplayTitle').inner_text()=='MAP DISPLAY'
+ assert page.locator('#landTexturesEnabled').is_visible()
+ assert page.locator('#oceanTexturesEnabled').is_visible()
+ assert page.locator('#showBrazilStates').is_visible()
+ assert page.locator('#geoPhysicalGroup').is_hidden()
  # Graphic references from actual app, not generated mockup.
  mapping={x.stem:'data:image/png;base64,'+base64.b64encode(x.read_bytes()).decode('ascii') for x in (A/'look-previews').glob('*.png')}
  page.evaluate('''m=>{for(const img of document.querySelectorAll('#presets img[data-native-look]'))if(m[img.dataset.nativeLook])img.src=m[img.dataset.nativeLook];document.querySelector('#toast').hidden=true;}''',mapping)
