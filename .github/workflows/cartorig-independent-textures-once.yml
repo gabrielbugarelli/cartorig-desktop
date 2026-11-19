@@ -1,6 +1,7 @@
 name: CartoRig Two Texture Checkboxes One-time QA
 # UI/UX development: manually start builds only when a portable is needed.
 # Public repository + standard windows-2022 runner: no metered runner compute.
+# QA rerun after synchronizing legacy material draw-order regression.
 # Single QA run, default free public Windows runner; remove after build.
 on:
   push:
