@@ -24,9 +24,9 @@ assert.equal(themeValue(doc,'cartographic_finish'),'ink_grain');
 render({},doc,[],{},1280,720);
 assert.deepEqual(calls.map(x=>[x.key,x.mask]),[
  ['surface_material','land'],
- ['ocean_material','ocean'],
  ['land_material','land'],
- ['cartographic_finish','land']
+ ['cartographic_finish','land'],
+ ['ocean_material','ocean']
 ],'paper, land and print textures must never be painted across the sea');
 // Explicitly requested marine patterns still use the ocean-only mask.
 doc.theme.overrides.ocean_material='marine_waves';
