@@ -38,4 +38,23 @@ Base estável: [v2.1.0](https://github.com/gabrielbugarelli/cartorig-desktop/rel
 
 ### Restrições e próximos passos
 
-Esta entrega **não** altera a release v2.1.0, o motor de desenho, a renderização de texturas, arquivos de projeto, o formato de exportação nem o mecanismo nativo de salvamento. Entrega 2.2 (Inspector contextual) fica fora deste PR até aprovação visual da 2.1.
+Esta entrega **não** altera a release v2.1.0, o motor de desenho, a renderização de texturas, arquivos de projeto, o formato de exportação nem o mecanismo nativo de salvamento. A Entrega 2.2 é desenvolvida na mesma branch e está descrita abaixo, sem mesclar na main antes da avaliação visual.
+
+## Entrega 2.2 — Inspector contextual
+
+O painel Inspector organiza os comandos existentes em quatro seções, escolhidas segundo o objeto selecionado:
+
+- **Basic:** nome, visibilidade e bloqueio; para Labels e Callouts, conteúdo de texto e edição inline; para Routes, tipo de caminho; para Markers, escolha do símbolo.
+- **Position:** posição WGS84, ancoragem geográfica/tela, offsets e alças de edição. Em Callouts, modo **Text box follows → Map / Screen**. Em Regions, origem e limites geográficos.
+- **Appearance:** campos de alteração imediata do aspecto visual: cores de texto, caixa, preenchimento, contorno, espessura, tipografia, setas, dimensão dos símbolos e opacidade.
+- **Advanced:** vértices, waypoints, importação de SVG/PNG, troca de fonte geográfica, sombra, brilho, mistura e overrides finos de estilo.
+
+A navegação é feita por clique ou teclado (Tab, setas, Home e End), com atributos ARIA e abas vazias ocultadas. A seção selecionada permanece ativa enquanto as propriedades do objeto são alteradas, mas a seleção de outro objeto volta para Basic.
+
+O conteúdo dos Inspectors de Route/Marker/Label/Shape foi redistribuído sem trocar os comandos `SetProperty`, `SetObjectStyle`, `SetProperties` e Undo/Redo. Uma Region agora expõe seus controles essenciais de cor e largura de contorno sem abrir Advanced. O painel avançado não duplica os campos de cores principais. Seleções múltiplas têm Basic e Appearance, sem oferecer operações incompatíveis.
+
+**Compatibilidade:** UI apenas; não modifica a câmera, o schema 2.0.0, os exportadores, o cache de texturas, o desenho geográfico nem as preferências locais do Workspace da Etapa 2.1. A interface indica `2.2.0 Preview` para não ser confundida com a versão publicada `v2.1.0`.
+
+**Regressões:** `tests/test_ui_stage2_inspector.mjs` cobre navegação, associação dos controles a cada seção, comandos de edição e Undo/Redo; o pipeline Windows também valida a sintaxe dos módulos e as regressões anteriores. Ver o [Changelog Etapa 2.2](CHANGELOG-stage2.2.md).
+
+**Aceitação visual:** selecionar um Callout, trocar texto em Basic, cor em Appearance e âncora em Position; confirmar que o texto permanece legível. Repetir com Label, Route, Marker e Region, incluindo Undo/Redo e a edição em barra lateral reduzida. Testar em 1366×768 e 1920×1080.
