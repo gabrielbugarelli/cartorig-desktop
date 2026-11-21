@@ -24,6 +24,7 @@ def browser_bundle(assets, include_app=True):
         'production-vector.js':'escapeXML serializeVectorScene',
         'production-templates.js':'PROJECT_TEMPLATES createTemplate',
         'production-studio.js':'setupProductionStudio',
+        'workspace-layout.js':'WORKSPACE_LAYOUT_KEY WORKSPACE_LIMITS workspaceDefaultWidths fitWorkspaceWidths setupWorkspaceLayout',
         'navigation-ui.js':'setupNavigation',
         'app.js':''
     }
