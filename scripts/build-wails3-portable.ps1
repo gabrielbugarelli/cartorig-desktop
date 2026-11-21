@@ -93,6 +93,14 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Compact map display regression failed' }
     & node tests/test_ui_stage2_workspace.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Stage 2.1 adjustable workspace regression failed' }
+    & node tests/test_ui_stage2_inspector.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Stage 2.2 contextual Inspector regression failed' }
+    & node --check assets/inspector-layout.js
+    if ($LASTEXITCODE -ne 0) { throw 'Contextual Inspector tab module syntax invalid' }
+    & node --check assets/creative-inspector.js
+    if ($LASTEXITCODE -ne 0) { throw 'Creative Inspector JavaScript syntax invalid' }
+    & node --check assets/style-inspector.js
+    if ($LASTEXITCODE -ne 0) { throw 'Advanced Inspector JavaScript syntax invalid' }
     & node --check assets/workspace-layout.js
     if ($LASTEXITCODE -ne 0) { throw 'Stage 2 workspace JavaScript syntax invalid' }
     & node --check assets/navigation-ui.js
