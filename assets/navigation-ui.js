@@ -1,3 +1,4 @@
+import {setupWorkspaceLayout} from './workspace-layout.js';
 /* CartoRig 2.0.2 — single owner of panel state and compact drawers. */
 export function setupNavigation(){
  const file=document.getElementById('fileMenu'),exports=document.getElementById('exportMenu');
@@ -52,5 +53,8 @@ export function setupNavigation(){
   dialog.addEventListener('close',()=>file?.querySelector('summary')?.focus());
   dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close();});
  }
- const api={setLeft,setRight,compact};window.CartoRigNavigation=api;return api;
+ const api={setLeft,setRight,compact};window.CartoRigNavigation=api;
+ const workspaceLayout=setupWorkspaceLayout({body,compact});
+ api.workspaceLayout=workspaceLayout;
+ return api;
 }
