@@ -435,3 +435,38 @@ button:disabled{cursor:not-allowed}
  .ux-workspace-resizing,.ux-workspace-resizing *{cursor:col-resize!important}
 }
 @media(prefers-reduced-motion:reduce){.ux-pane-resizer::before{transition:none}}
+
+
+/* UI/UX Stage 2.2 — contextual inspector sections. The tab row stays narrow
+   enough for the minimum desktop sidebar without crowding map controls. */
+.ux-inspector-nav{
+ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;
+ padding:3px;margin:0 0 10px;border:1px solid #36556a;
+ border-radius:9px;background:#101e2b;
+}
+.ux-inspector-nav[hidden],.ux-inspector-tab[hidden],
+.ux-inspector-section[hidden]{display:none!important}
+.ux-inspector-tab{
+ min-width:0;min-height:34px;padding:7px 2px;
+ color:#a8bfd0;background:transparent;border:1px solid transparent;
+ border-radius:6px;font:600 10.5px/1.2 inherit;
+ overflow-wrap:anywhere;cursor:pointer;
+}
+.ux-inspector-tab:hover{background:#233b4d;color:#e0edf5}
+.ux-inspector-tab.active,.ux-inspector-tab[aria-selected="true"]{
+ background:#24485e;color:#eaf6ff;border-color:#4e90b8;
+}
+.ux-inspector-tab:focus-visible{
+ outline:2px solid #8dccf5;outline-offset:1px;
+}
+.ux-inspector-section{min-width:0;padding:0 0 2px;}
+.ux-inspector-section .inspector-group{margin-bottom:9px}
+.ux-inspector-section .inspector-group>.field-label{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+.ux-inspector-section .inspector-group>.field-label>.control,
+.ux-inspector-section .inspector-group>.field-label>textarea{width:100%;min-width:0}
+.ux-inspector-section .inspector-group>.check{margin:8px 0}
+.ux-inspector-section .creative-location-results{min-width:0}
+.ux-inspector-section .style14-inspector-actions{display:flex;flex-wrap:wrap;gap:6px}
+.ux-inspector-section .style14-inspector-actions>button{flex:1;min-width:92px}
+@media(max-width:980px){.ux-inspector-tab{min-height:38px;font-size:11px}}
+@media(prefers-reduced-motion:reduce){.ux-inspector-tab{transition:none}}
