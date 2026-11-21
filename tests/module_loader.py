@@ -13,6 +13,7 @@ def browser_bundle(assets, include_app=True):
         'style-effects.js':'blending withIsolatedSurface applyAtmosphere setRenderTile',
         'creative-renderer.js':'clearCreativeImageCache settleCreativeAssets shapeScreenPoints creativeHandles drawCreative hitCreative',
         'creative-inspector.js':'browserFontAvailable creativeInspector',
+        'inspector-layout.js':'INSPECTOR_SECTIONS createInspectorSections',
         'geo-catalog.js':'GEO_TYPES geoNormalize geoDisplayName geoDisplayParent GeoCatalog featureBounds featureFocusBounds canonicalCountryId normalizeCountryIds countryForRegion',
         'map-labels.js':'labelOptions layoutMapLabels paintMapLabels labelKinds',
         'texture-cache.js':'PREVIEW_TEXTURE_MAX_PIXELS PREVIEW_TEXTURE_BUDGET_PIXELS createFilteredTextureCache visibleRasterShifts',
@@ -24,6 +25,7 @@ def browser_bundle(assets, include_app=True):
         'production-vector.js':'escapeXML serializeVectorScene',
         'production-templates.js':'PROJECT_TEMPLATES createTemplate',
         'production-studio.js':'setupProductionStudio',
+        'workspace-layout.js':'WORKSPACE_LAYOUT_KEY WORKSPACE_LIMITS workspaceDefaultWidths fitWorkspaceWidths setupWorkspaceLayout',
         'navigation-ui.js':'setupNavigation',
         'app.js':''
     }
