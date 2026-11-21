@@ -381,3 +381,57 @@ button:disabled{cursor:not-allowed}
 .tree-row .node-actions svg{width:17px;height:17px;display:block;pointer-events:none}
 .tree-row .node-actions button:focus-visible{outline:2px solid #81caff;outline-offset:1px}
 .tree-row .node-actions button.off{color:#6d8295}
+
+
+/* UI/UX Stage 2.1 — adjustable desktop workspace. Overrides fixed Stage 1
+   column widths only on desktop; narrow-screen drawers remain unchanged. */
+:root{--ux-resize-left:255px;--ux-resize-right:315px}
+.workspace{position:relative}
+.ux-pane-resizer{display:none}
+@media(min-width:981px){
+ .workspace{
+  grid-template-columns:var(--ux-resize-left) minmax(0,1fr) var(--ux-resize-right);
+ }
+ .ux-left-collapsed .workspace{
+  grid-template-columns:0 minmax(0,1fr) var(--ux-resize-right);
+ }
+ .ux-right-collapsed .workspace{
+  grid-template-columns:var(--ux-resize-left) minmax(0,1fr) 0;
+ }
+ .ux-left-collapsed.ux-right-collapsed .workspace{
+  grid-template-columns:0 minmax(0,1fr) 0;
+ }
+ .ux-pane-resizer{
+  display:block;
+  position:absolute;
+  z-index:25;
+  top:0;bottom:0;
+  width:12px;
+  left:var(--ux-resize-left);
+  transform:translateX(-50%);
+  background:transparent;
+  border:0;
+  cursor:col-resize;
+  touch-action:none;
+  user-select:none;
+  outline-offset:-3px;
+ }
+ .ux-pane-resizer::before{
+  content:"";
+  position:absolute;
+  width:2px;
+  top:0;bottom:0;left:5px;
+  background:#496a83;
+  opacity:.65;
+  transition:background .15s ease,opacity .15s ease,width .15s ease;
+ }
+ .ux-pane-resizer:hover::before,.ux-pane-resizer:focus-visible::before,
+ .ux-workspace-resizing .ux-pane-resizer::before{
+  width:3px;background:#85c6f3;opacity:1;
+ }
+ .ux-pane-resizer[data-side="right"]{left:auto;right:var(--ux-resize-right);transform:translateX(50%)}
+ .ux-left-collapsed .ux-pane-resizer[data-side="left"],
+ .ux-right-collapsed .ux-pane-resizer[data-side="right"]{display:none}
+ .ux-workspace-resizing,.ux-workspace-resizing *{cursor:col-resize!important}
+}
+@media(prefers-reduced-motion:reduce){.ux-pane-resizer::before{transition:none}}
