@@ -33,6 +33,9 @@ jobs:
           node tests/test_recovery_bulk_ui.mjs
           node tests/test_ui_stage1.mjs
           node tests/test_ui_map_display.mjs
+          node tests/test_ui_stage2_workspace.mjs
+          node --check assets/workspace-layout.js
+          node --check assets/navigation-ui.js
           node tests/test_callout_geo_anchor.mjs
           node tests/test_callout_text_contrast.mjs
           node tests/test_material_geo_anchor.mjs
