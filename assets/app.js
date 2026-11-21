@@ -10,6 +10,7 @@ import {GeoCatalog,geoNormalize,geoDisplayName,geoDisplayParent,featureBounds,fe
 import {SHAPES,ROUTE_TYPES,MARKER_SYMBOLS,sanitizeSVG,pointValid,resolveLink} from './creative-engine.js';
 import {drawCreative,creativeHandles,settleCreativeAssets} from './creative-renderer.js';
 import {creativeInspector} from './creative-inspector.js';
+import {createInspectorSections} from './inspector-layout.js';
 import {setupStyleStudio} from './style-studio.js';
 import {resolveStyle} from './style-resolver.js';
 import {renderAdvancedInspector} from './style-inspector.js';
@@ -284,30 +285,43 @@ function createField(root,label,value,onChange,{type='text',min,max,step,disable
  input.onchange=()=>{let v=type==='number'?Number(input.value):input.value;if(type==='number'&&(!Number.isFinite(v)||input.value===''||(min!=null&&v<min)||(max!=null&&v>max))){showToast('Invalid '+label,true);input.value=value;return;}onChange(v);};wrap.append(input);root.append(wrap);return input;}
 function createCheck(root,label,checked,onChange,disabled=false){let wrap=document.createElement('label');wrap.className='check';let input=document.createElement('input');input.type='checkbox';input.checked=!!checked;input.disabled=disabled;input.onchange=()=>onChange(input.checked);wrap.append(input,document.createTextNode(label));root.append(wrap);return input;}
 function inspectorGroup(root,title){let group=document.createElement('div');group.className='inspector-group';let h=document.createElement('h3');h.textContent=title;group.append(h);root.append(group);return group;}
-const inspectorAdvancedOpen=new Set();
+let lastInspectorSelection='',activeInspectorSection='basic';
 function renderInspector(){let root=$('inspector');root.replaceChildren();let ids=store.selection,doc=store.doc;$('selectionCount').textContent=ids.length>1?ids.length+' selected':'';if(!ids.length){
  const empty=document.createElement('div');empty.className='ux-empty-state';
  const title=document.createElement('strong');title.textContent='Nothing selected';
  const hint=document.createElement('p');hint.textContent='Choose a layer in Scene or click an object on the map to edit its properties.';
  const action=document.createElement('button');action.type='button';action.textContent='Browse geography';
  action.onclick=()=>{setTab('geography');$('countrySearch').focus();};
- empty.append(title,hint,action);root.append(empty);return;
+ empty.append(title,hint,action);root.append(empty);lastInspectorSelection='';activeInspectorSection='basic';return;
 }
  const target=doc.objects[ids[0]],multi=ids.length>1,locked=ids.some(id=>isLocked(doc,id));
  const objHeader=document.createElement('div');objHeader.className='ux-inspector-object';
  const objType=document.createElement('span');objType.className='ux-inspector-type';objType.textContent=multi?'MULTIPLE OBJECTS':target.type;
  const objName=document.createElement('strong');objName.textContent=multi?`${ids.length} objects selected`:target.name;
  const objState=document.createElement('small');objState.textContent=locked?'Locked selection':'';
- objHeader.append(objType,objName);if(locked)objHeader.append(objState);root.append(objHeader);if(multi){let sec=inspectorGroup(root,'MULTI-SELECTION');createField(sec,'Opacity (%)',Math.round((target.opacity??1)*100),v=>exec({type:'BatchSet',ids,path:'opacity',value:v/100}),{type:'number',min:0,max:100,disabled:locked});createCheck(sec,'Visible',ids.every(id=>doc.objects[id].visible),v=>exec({type:'BatchSet',ids,path:'visible',value:v}),locked);if(ids.every(id=>['Region','Route','Label','Marker','Shape'].includes(doc.objects[id].type))){
+ objHeader.append(objType,objName);if(locked)objHeader.append(objState);root.append(objHeader);
+ const selectionKey=ids.join('|');
+ if(selectionKey!==lastInspectorSelection){activeInspectorSection='basic';lastInspectorSelection=selectionKey;}
+ const layout=createInspectorSections(root,{active:activeInspectorSection,onSelect:id=>{activeInspectorSection=id;}});
+ const sectionGroup=(ignored,title,section='advanced')=>layout.group(section,title);
+ if(multi){
+  let sec=layout.group('basic','MULTI-SELECTION');
+  createCheck(sec,'Visible',ids.every(id=>doc.objects[id].visible),v=>exec({type:'BatchSet',ids,path:'visible',value:v}),locked);
+  const common=layout.group('appearance','SHARED APPEARANCE');
+  createField(common,'Opacity (%)',Math.round((target.opacity??1)*100),v=>exec({type:'BatchSet',ids,path:'opacity',value:v/100}),{type:'number',min:0,max:100,disabled:locked});
+  if(ids.every(id=>['Region','Route','Label','Marker','Shape'].includes(doc.objects[id].type))){
   const key=o=>({Region:'fill_color',Route:'stroke_color',Label:'text_color',Marker:'fill_color',Shape:'stroke_color'})[o.type];
   const values=ids.map(id=>{const o=doc.objects[id];return resolveStyle(doc,o)[key(o)]||'#d86c52';});
-  if(new Set(values).size>1){let tag=document.createElement('small');tag.textContent='Color: Mixed — choose a value to update all selected objects';sec.append(tag);}
-  createField(sec,'Shared color',values[0].length===4?'#'+[...values[0].slice(1)].map(c=>c+c).join(''):values[0].slice(0,7),v=>{exec({type:'BatchColor',ids,color:v})},{type:'color',disabled:locked});}return;}
- let sec=inspectorGroup(root,'IDENTITY');createField(sec,'Display name',target.name,v=>exec({type:'RenameObject',id:target.id,name:v}),{disabled:locked});let sm=document.createElement('small');sm.textContent=target.type+' · '+target.id;const objectDetails=document.createElement('details');objectDetails.className='ux-advanced ux-inspector-metadata';const objectDetailsTitle=document.createElement('summary');objectDetailsTitle.textContent='Object ID';objectDetails.append(objectDetailsTitle,sm);sec.append(objectDetails);createCheck(sec,'Visible',target.visible,v=>exec({type:'SetVisibility',id:target.id,value:v}),locked);createCheck(sec,'Locked',target.locked,v=>exec({type:'SetLock',id:target.id,value:v}));
+  if(new Set(values).size>1){let tag=document.createElement('small');tag.textContent='Color: Mixed — choose a value to update all selected objects';common.append(tag);}
+  createField(common,'Shared color',values[0].length===4?'#'+[...values[0].slice(1)].map(c=>c+c).join(''):values[0].slice(0,7),v=>{exec({type:'BatchColor',ids,color:v})},{type:'color',disabled:locked});}
+ layout.finish();return;}
+ let sec=layout.group('basic','IDENTITY');createField(sec,'Display name',target.name,v=>exec({type:'RenameObject',id:target.id,name:v}),{disabled:locked});let sm=document.createElement('small');sm.textContent=target.type+' · '+target.id;const objectDetails=document.createElement('details');objectDetails.className='ux-advanced ux-inspector-metadata';const objectDetailsTitle=document.createElement('summary');objectDetailsTitle.textContent='Object ID';objectDetails.append(objectDetailsTitle,sm);
+ layout.group('advanced','OBJECT DETAILS').append(objectDetails);
+ createCheck(sec,'Visible',target.visible,v=>exec({type:'SetVisibility',id:target.id,value:v}),locked);createCheck(sec,'Locked',target.locked,v=>exec({type:'SetLock',id:target.id,value:v}));
  if(target.type!=='WorldMap'&&target.type!=='Grid'&&target.type!=='Borders'){
-  let common=inspectorGroup(root,'COMPOSITION');createField(common,'Opacity (%)',Math.round((target.opacity??1)*100),v=>exec({type:'SetProperty',id:target.id,path:'opacity',value:v/100}),{type:'number',min:0,max:100,disabled:locked});}
+  let common=layout.group('appearance','COMPOSITION');createField(common,'Opacity (%)',Math.round((target.opacity??1)*100),v=>exec({type:'SetProperty',id:target.id,path:'opacity',value:v/100}),{type:'number',min:0,max:100,disabled:locked});}
  if(['Region','Route','Marker','Label','Shape'].includes(target.type)){
-  const fx=inspectorGroup(root,'Quick effects');
+  const fx=layout.group('appearance','QUICK EFFECTS');
   const sty=resolveStyle(doc,target);const actions=document.createElement('div');actions.className='style14-inspector-actions';
   for(const [name,values] of [['✦ Glow',sty.glow_enabled?{glow_enabled:false}:{glow_enabled:true,glow_color:'#77caff',glow_intensity:1.5,glow_radius:24,glow_mix:1}],['◐ Shadow',sty.shadow_enabled?{shadow_enabled:false}:{shadow_enabled:true,shadow_blur:22,shadow_distance:12,shadow_opacity:.65}]]){
    const b=document.createElement('button');b.textContent=name;b.disabled=locked;
@@ -316,13 +330,19 @@ function renderInspector(){let root=$('inspector');root.replaceChildren();let id
  }
 
  function prop(group,label,key,def,type='color',options={}){createField(group,label,target.style?.[key]??def,v=>exec({type:'SetProperty',id:target.id,path:'style.'+key,value:v}),{type,disabled:locked,...options});}
- if(target.type==='Region'){let loc=inspectorGroup(root,'GEOGRAPHY');const geoMeta=document.createElement('details');geoMeta.className='ux-advanced ux-inspector-metadata';const geoMetaSummary=document.createElement('summary');geoMetaSummary.textContent='Source details';geoMeta.append(geoMetaSummary);let t=document.createElement('small');t.textContent=target.region_kind+' · '+(target.source?.dataset_id||'Unknown dataset')+' · '+(target.source?.feature_id||'unknown')+(target.embedded_geometry?' · Geometry saved in project':'');geoMeta.append(t);loc.append(geoMeta);
+ if(target.type==='Region'){
+  const sty=resolveStyle(doc,target),looks=layout.group('appearance','REGION STYLE');
+  prop(looks,'Fill color','fill_color',sty.fill_color||'#bc755e');
+  prop(looks,'Stroke color','stroke_color',sty.stroke_color||'#f2d9b7');
+  prop(looks,'Stroke width (px)','stroke_width',sty.stroke_width??2,'number',{min:0,max:40,step:.5});
+ }
+ if(target.type==='Region'){let loc=layout.group('position','GEOGRAPHY');const geoMeta=document.createElement('details');geoMeta.className='ux-advanced ux-inspector-metadata';const geoMetaSummary=document.createElement('summary');geoMetaSummary.textContent='Source details';geoMeta.append(geoMetaSummary);let t=document.createElement('small');t.textContent=target.region_kind+' · '+(target.source?.dataset_id||'Unknown dataset')+' · '+(target.source?.feature_id||'unknown')+(target.embedded_geometry?' · Geometry saved in project':'');geoMeta.append(t);loc.append(geoMeta);
  const regionGeometry=target.embedded_geometry||(target.region_kind==='Country'?countryForRegion(target,countries,geo,store.doc.camera.zoom)?.geometry:geo?.lookup?.(target.source?.dataset_id,target.source?.feature_id)?.geometry)||null;
  if(regionGeometry){const bounds=featureFocusBounds(regionGeometry);let text=document.createElement('small');text.className='region-bounds';text.textContent=`WGS84 bounds: ${bounds.minx.toFixed(4)}° to ${bounds.maxx.toFixed(4)}° lon · ${bounds.miny.toFixed(4)}° to ${bounds.maxy.toFixed(4)}° lat`;geoMeta.append(text);}
  else {const unresolved=document.createElement('small');unresolved.textContent='Geometry unresolved in installed data';loc.append(unresolved);}
  if(target.geo_source_info){let detail=document.createElement('small');let a=target.geo_source_info;detail.textContent=`Source: ${a.source_file||a.dataset_id||'Natural Earth'} · scale ${a.scale||'unknown'} · ID ${a.feature_id||'unknown'} · version ${a.source_version||'unknown'}`;geoMeta.append(detail);}}
  if(target.type==='Region'){
-  let actions=document.createElement('details');actions.className='ux-advanced ux-inspector-replace';const replaceSummary=document.createElement('summary');replaceSummary.textContent='Replace geography';actions.append(replaceSummary);root.append(actions);
+  let actions=document.createElement('details');actions.className='ux-advanced ux-inspector-replace';const replaceSummary=document.createElement('summary');replaceSummary.textContent='Replace geography';actions.append(replaceSummary);layout.group('advanced','GEOGRAPHIC REPLACEMENT').append(actions);
   let query=createField(actions,'Find country, state or province','',()=>{},{});query.placeholder='Search country, province, state…';query.onchange=null;
   const matches=document.createElement('div');matches.className='creative-location-results';actions.append(matches);
   let finder=0;query.oninput=()=>{clearTimeout(finder);finder=setTimeout(()=>{
@@ -343,9 +363,9 @@ function renderInspector(){let root=$('inspector');root.replaceChildren();let id
    }
   },180);};
  }
- if((target.type==='Marker'||target.type==='Label')&&target.geo_source_info){let loc=inspectorGroup(root,'GEOGRAPHY');let a=target.geo_source_info;let d=document.createElement('small');d.textContent=`${a.parent||'World'} · ${a.dataset_id||'Natural Earth'} · scale ${a.scale||'unknown'} · ID ${a.feature_id||'unknown'}`;const metadata=document.createElement('details');metadata.className='ux-advanced ux-inspector-metadata';const summary=document.createElement('summary');summary.textContent='Source details';metadata.append(summary,d);loc.append(metadata);}
+ if((target.type==='Marker'||target.type==='Label')&&target.geo_source_info){let loc=layout.group('position','GEOGRAPHY');let a=target.geo_source_info;let d=document.createElement('small');d.textContent=`${a.parent||'World'} · ${a.dataset_id||'Natural Earth'} · scale ${a.scale||'unknown'} · ID ${a.feature_id||'unknown'}`;const metadata=document.createElement('details');metadata.className='ux-advanced ux-inspector-metadata';const summary=document.createElement('summary');summary.textContent='Source details';metadata.append(summary,d);loc.append(metadata);}
  if(['Route','Marker','Label','Shape'].includes(target.type))creativeInspector(root,target,doc,{
-  exec,field:createField,check:createCheck,group:inspectorGroup,locked,toast:showToast,
+  exec,field:createField,check:createCheck,group:sectionGroup,locked,toast:showToast,
   editText:()=>openInlineText(target),importImage:importCreativeIcon,findCities:q=>geo?.search(q,'City','',8)||[],
   representative:o=>{let g=o.embedded_geometry||(o.region_kind==='Country'?countryForRegion(o,countries,geo,store.doc.camera.zoom)?.geometry:geo?.lookup?.(o.source?.dataset_id,o.source?.feature_id)?.geometry);if(!g)return null;let b=featureFocusBounds(g),mx=(b.minx+b.maxx)/2,my=(b.miny+b.maxy)/2;for(let i=0;i<45;i++)for(let j=0;j<45;j++){let lon=b.minx+(b.maxx-b.minx)*(i===0?.5:i/45),lat=b.miny+(b.maxy-b.miny)*(j===0?.5:j/45);lon=((lon+180)%360+360)%360-180;if(pointInside(lon,lat,{geometry:g}))return {lon,lat};}return null;},
   editPath:()=>{setTool('select');editHandles=true;editOffset=false;showToast('Drag a blue handle to edit. Esc exits editing.');},
@@ -376,15 +396,10 @@ function renderInspector(){let root=$('inspector');root.replaceChildren();let id
   geoPoint:(anchor,screen)=>{if(screen){let [lon,lat]=unproject(doc,screen.x*canvas.width,screen.y*canvas.height,canvas.width,canvas.height);return {lon:clamp(lon,-180,180),lat:clamp(lat,-90,90)};}let [x,y]=project(doc,anchor.lon,anchor.lat,canvas.width,canvas.height);return {x:clamp(x/canvas.width,0,1),y:clamp(y/canvas.height,0,1)};}
  });
  if(['Region','Route','Marker','Label','Shape','Group'].includes(target.type)){
-  const advanced=document.createElement('details');advanced.className='ux-advanced ux-inspector-advanced';
-  advanced.open=inspectorAdvancedOpen.has(target.type);
-  advanced.addEventListener('toggle',()=>{if(advanced.open)inspectorAdvancedOpen.add(target.type);else inspectorAdvancedOpen.delete(target.type);});
-  const summary=document.createElement('summary');summary.textContent='Advanced appearance & effects';
-  const inner=document.createElement('div');inner.className='ux-inspector-advanced-body';
-  advanced.append(summary,inner);root.append(advanced);
-  renderAdvancedInspector(inner,target,doc,{exec,field:createField,check:createCheck,group:inspectorGroup,locked,toast:showToast});
+  const advanced=layout.panels.get('advanced');
+  renderAdvancedInspector(advanced,target,doc,{exec,field:createField,check:createCheck,group:inspectorGroup,locked,toast:showToast});
  }
- 
+ layout.finish();
 }
 function syncUI(reason='change'){const d=store.doc;let inp=$('projectName');if(document.activeElement!==inp)inp.value=d.name;$('dirtyState').textContent=store.dirty?'Unsaved changes':'Saved';$('dirtyState').classList.toggle('dirty',store.dirty);$('undo').disabled=!store.undoStack.length;$('redo').disabled=!store.redoStack.length;$('zoomValue').textContent=Math.round(d.camera.zoom*100)+'%';$('selectionCount').textContent=store.selection.length>1?store.selection.length+' selected':'';$('resolution').value=d.canvas.width+'x'+d.canvas.height;$('transparent').checked=d.canvas.transparent;document.querySelectorAll('[data-style]').forEach(b=>b.classList.toggle('active',b.dataset.style===d.theme.id));$('duplicate').disabled=store.selection.length!==1;$('delete').disabled=!store.selection.length;$('ungroup').disabled=store.selection.length!==1||d.objects[store.selection[0]]?.type!=='Group';$('ungroup').hidden=$('ungroup').disabled;renderTree();renderInspector();styleStudio.sync();if(reason!=='saved')drawPreview();geoStatus();}
 function fitCountry(iso){let c=byIso.get(iso);if(!c)return;fitBounds(boundsOf(c));}
