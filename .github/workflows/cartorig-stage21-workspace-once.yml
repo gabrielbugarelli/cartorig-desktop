@@ -1,6 +1,7 @@
 name: CartoRig UI Stage 2.1 Workspace One-time Windows QA
 # UI/UX development: manually start builds only when a portable is needed.
 # Public repository + standard windows-2022 runner: no metered runner compute.
+# QA rerun after checking compact viewport drag invariants.
 # One-off free/public Windows QA; remove after successful portable validation.
 on:
   push:
