@@ -91,6 +91,12 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'UI stage-one contract regression failed' }
     & node tests/test_ui_map_display.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Compact map display regression failed' }
+    & node tests/test_ui_stage2_workspace.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Stage 2.1 adjustable workspace regression failed' }
+    & node --check assets/workspace-layout.js
+    if ($LASTEXITCODE -ne 0) { throw 'Stage 2 workspace JavaScript syntax invalid' }
+    & node --check assets/navigation-ui.js
+    if ($LASTEXITCODE -ne 0) { throw 'Stage 2 navigation JavaScript syntax invalid' }
     & node tests/test_callout_geo_anchor.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Geographic Callout regression failed' }
     & node tests/test_callout_text_contrast.mjs
