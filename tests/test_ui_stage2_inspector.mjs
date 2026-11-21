@@ -102,7 +102,7 @@ assert.equal((result.texts.appearance.match(/Text color/g)||[]).length,1);
 assert.ok(!result.texts.advanced.includes('Text color'),'Advanced must avoid duplicate color input');
 let textField=collect(result.layout.panels.get('basic'),n=>n.textContent==='Callout text')[0];
 assert.ok(textField?.children?.[0]);
-textField.children[0].onchange('Brasil revisado');
+textField.children[0].value='Brasil revisado';textField.children[0].onchange();
 assert.ok(result.calls.some(x=>x.type==='SetProperty'&&x.path==='text'&&x.value==='Brasil revisado'));
 let box=collect(result.layout.panels.get('appearance'),n=>n.textContent==='Text color')[0];
 assert.ok(box?.children?.[0]);
