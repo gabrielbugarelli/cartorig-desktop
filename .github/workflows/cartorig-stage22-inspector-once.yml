@@ -1,0 +1,138 @@
+name: CartoRig UI Stage 2.2 Inspector One-time Windows QA
+# UI/UX development: manually start builds only when a portable is needed.
+# Public repository + standard windows-2022 runner: no metered runner compute.
+# Temporary QA: public free standard Windows runner, removed after validation.
+on:
+  push:
+    branches:
+      - feature/ui-ux-stage2
+    paths:
+      - '.github/workflows/cartorig-stage22-inspector-once.yml'
+concurrency:
+  group: cartorig-ui-manual-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  portable:
+    # Never allocate a runner if this repository becomes private.
+    if: "${{ github.event.repository.private == false && github.event.head_commit.message == 'ci(stage2): one-time Inspector 2.2 Windows QA' }}"
+    runs-on: windows-2022
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.x'
+          cache: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate preview and texture regressions
+        shell: pwsh
+        run: |
+          node tests/test_texture_cache.mjs
+          node tests/test_texture_render_path.mjs
+          node tests/test_state_boundaries.mjs
+          node tests/test_label_stack.mjs
+          node tests/test_recovery_bulk_ui.mjs
+          node tests/test_ui_stage1.mjs
+          node tests/test_ui_map_display.mjs
+          node tests/test_ui_stage2_workspace.mjs
+          node tests/test_ui_stage2_inspector.mjs
+          node --check assets/inspector-layout.js
+          node --check assets/creative-inspector.js
+          node --check assets/style-inspector.js
+          node --check assets/workspace-layout.js
+          node --check assets/navigation-ui.js
+          node tests/test_callout_geo_anchor.mjs
+          node tests/test_callout_text_contrast.mjs
+          node tests/test_material_geo_anchor.mjs
+          node tests/test_ocean_material_isolation.mjs
+          node tests/test_material_category_logic.mjs
+          node tests/test_surface_texture_switches.mjs
+          node --check assets/creative-renderer.js
+          node --check assets/look-materials.js
+          node --check assets/style-studio.js
+          node --check assets/scene-core.js
+          node --check assets/scene-renderer.js
+          node tests/test_ui_stage1_behavior.mjs
+          node --check assets/app.js
+          node --check assets/production-studio.js
+          node tests/test_preview_cache.mjs
+          node tests/test_preview_lifecycle.mjs
+          node tests/test_preview_composition_integration.mjs
+      - name: Build Windows portable
+        shell: pwsh
+        run: ./scripts/build-wails3-portable.ps1
+      - name: Smoke test GUI launch on Windows runner
+        id: smoke
+        shell: pwsh
+        env:
+          CARTORIG_NO_GUI_ERRORS: '1'
+        run: |
+          $exe = (Resolve-Path 'dist/CartoRig-2.1.0-Wails3-Portable-Windows-x64.exe').Path
+          & $exe --self-check
+          $logPath = Join-Path $env:LOCALAPPDATA 'CartoRig/logs/desktop-startup.log'
+          if (Test-Path $logPath) { Get-Content $logPath -Tail 12 }
+          $proc = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 8
+          $proc.Refresh()
+          if ($proc.HasExited) {
+            Write-Host "GUI process exited during smoke test with code $($proc.ExitCode)"
+            if (Test-Path $logPath) { Get-Content $logPath -Tail 60 }
+            throw "GUI process terminated immediately in hosted runner"
+          }
+          Write-Host "GUI process remained running after 8 seconds"
+          Add-Type -TypeDefinition @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class CartoRigWindow {
+            [DllImport("user32.dll", CharSet=CharSet.Unicode)]
+            public static extern IntPtr FindWindow(string cls, string caption);
+            [DllImport("user32.dll")]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            public static extern bool PostMessage(IntPtr h, uint message, IntPtr w, IntPtr l);
+            [DllImport("user32.dll")]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            public static extern bool IsWindowVisible(IntPtr h);
+          }
+          '@
+          $hwnd=[CartoRigWindow]::FindWindow($null,'CartoRig Desktop')
+          if ($hwnd -eq [IntPtr]::Zero) {
+            Write-Host "Window handle unavailable in CI session; interactive tray behavior remains to be checked on desktop."
+          } else {
+            if (-not [CartoRigWindow]::PostMessage($hwnd,0x0010,[IntPtr]::Zero,[IntPtr]::Zero)) { throw 'WM_CLOSE could not be sent' }
+            Start-Sleep -Seconds 2
+            $proc.Refresh()
+            if ($proc.HasExited) { throw 'Closing X terminated the process instead of hiding it' }
+            if ([CartoRigWindow]::IsWindowVisible($hwnd)) { throw 'Closing X did not hide the main window' }
+            Write-Host 'WM_CLOSE hid the window and the CartoRig process stayed running'
+            $second=Start-Process -FilePath $exe -PassThru
+            Start-Sleep -Seconds 3
+            $second.Refresh()
+            if (-not $second.HasExited) {
+              Stop-Process -Id $second.Id -Force
+              throw 'Second application instance did not exit'
+            }
+            if (-not [CartoRigWindow]::IsWindowVisible($hwnd)) { throw 'Second launch did not restore existing window' }
+            Write-Host 'Single-instance restore passed'
+          }
+          Stop-Process -Id $proc.Id -Force
+      - name: Upload Windows startup log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CartoRig-2.1.0-Wails3-Windows-Smoke-Log
+          path: ~/AppData/Local/CartoRig/logs/desktop-startup.log
+          if-no-files-found: ignore
+          retention-days: 3
+      - name: Upload portable EXE and SHA256
+        uses: actions/upload-artifact@v4
+        with:
+          name: CartoRig-2.2.0-Preview-Inspector-Contextual-Windows-x64
+          path: |
+            dist/CartoRig-2.1.0-Wails3-Portable-Windows-x64.exe
+            dist/CartoRig-Wails3-SHA256.txt
+          if-no-files-found: error
+          retention-days: 3
