@@ -108,15 +108,21 @@ export function drawDraftGuides(ctx,doc,draft,cursor,w,h,project,pointAt){
   ctx.moveTo(first[0],first[1]);ctx.lineTo(cursor.x,cursor.y);ctx.stroke();
  }
  ctx.restore();
- for(let i=0;i<points.length;i++){
+ // Freehand can have hundreds of samples; avoid drawing hundreds of handles.
+ const indices=draft.shape_kind==='Freehand'&&points.length>2?[0,points.length-1]:
+  points.map((_,i)=>i);
+ for(const i of indices){
   drawHandle(ctx,...points[i],draft.type==='Shape'&&draft.shape_kind==='Callout'?
    (i===0?'anchor':'box'):draft.type==='Route'?
    (i===0?'anchor':'waypoint'):'vertex',{draft:i===0});
  }
  if(cursor){
   const point=pointAt(cursor.x,cursor.y,draft.coordinate_space||'geo');
-  if(point?.lon!==undefined||point?.x!==undefined)
-   drawHandle(ctx,cursor.x,cursor.y,draft.type==='Shape'&&draft.shape_kind==='Callout'?'box':'vertex',{draft:true});
+  if(point?.lon!==undefined||point?.x!==undefined){
+   const xy=point.lon!==undefined?project(doc,point.lon,point.lat,w,h):
+    [point.x*w,point.y*h];
+   drawHandle(ctx,...xy,draft.type==='Shape'&&draft.shape_kind==='Callout'?'box':'vertex',{draft:true});
+  }
  }
 }
 export function drawPlacementPreview(ctx,doc,tool,cursor,w,h,project,pointAt,{symbol='Circle'}={}){
