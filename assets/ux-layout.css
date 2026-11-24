@@ -496,4 +496,6 @@ button:disabled{cursor:not-allowed}
 @media(max-width:980px){
  .ux-creative-guide{top:6px;padding:8px 10px;font-size:11px;max-width:96%}
 }
+.canvas-wrap.ux-handle-hover #mapCanvas{cursor:grab}
+.canvas-wrap.ux-handle-hover.dragging #mapCanvas{cursor:grabbing}
 @media(prefers-reduced-motion:reduce){.ux-creative-guide{transition:none}}
