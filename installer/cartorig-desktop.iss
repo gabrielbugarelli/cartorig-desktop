@@ -1,11 +1,11 @@
-; CartoRig 2.4.0 Preview — traditional per-user Windows installer.
+; CartoRig 2.4.0 — traditional per-user Windows installer.
 ; Build with Inno Setup 6. Source EXE must be verified against the approved
 ; GitHub Actions QA artifact before ISCC compiles this script.
 #define AppName "CartoRig Desktop"
 #define AppVersion "2.4.0"
-#define AppDisplayVersion "2.4.0 Preview"
+#define AppDisplayVersion "2.4.0"
 #define AppExeName "CartoRig.exe"
-#define SourceExe "CartoRig-2.4.0-Preview-Wails3-Portable-Windows-x64.exe"
+#define SourceExe "CartoRig-2.4.0-Wails3-Portable-Windows-x64.exe"
 
 [Setup]
 AppId={{3928EE55-FFF5-5966-A76E-186D41369FFF}
@@ -32,7 +32,7 @@ WizardStyle=modern
 Compression=lzma2
 SolidCompression=yes
 OutputDir=..\dist\installer
-OutputBaseFilename=CartoRig-2.4.0-Preview-Setup-Windows-x64
+OutputBaseFilename=CartoRig-2.4.0-Setup-Windows-x64
 LicenseFile=..\LICENSE
 SetupIconFile=..\dist\cartorig-installer.ico
 SetupLogging=yes
