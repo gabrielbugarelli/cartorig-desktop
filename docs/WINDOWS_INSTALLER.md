@@ -1,4 +1,4 @@
-# Instalador Windows — CartoRig 2.4.0 Preview
+# Instalador Windows — CartoRig v2.4.0
 
 ## Objetivo
 
@@ -9,7 +9,7 @@ Instalador tradicional **Windows x64** em `.exe`, diferente do portable. Utiliza
 - Atalho no menu Iniciar e opção de criar atalho na área de trabalho.
 - Registro em **Configurações → Aplicativos → Aplicativos instalados**, com desinstalador `unins000.exe`.
 - Opção de iniciar o CartoRig ao final do assistente.
-- O app instalado é `CartoRig.exe` (mesmo binário aprovado na Etapa 2.4, renomeado apenas no destino).
+- O app instalado é `CartoRig.exe` (mesmo binário compilado e verificado para a release v2.4.0, renomeado apenas no destino).
 - Instalador e executável de aplicação independentes do projeto `.cartorig` e dos arquivos de usuário.
 
 **Preservação de dados:** desinstalar remove binários, atalhos e a entrada de desinstalação, mas **não remove projetos, recuperações nem preferências** guardadas na pasta `%LOCALAPPDATA%\CartoRig`. O usuário mantém seu trabalho ao reinstalar.
@@ -18,12 +18,12 @@ Instalador tradicional **Windows x64** em `.exe`, diferente do portable. Utiliza
 
 - Windows 10/11 **64 bits**, Microsoft Edge WebView2 Runtime disponível.
 - Se o CartoRig estiver aberto na bandeja do sistema, feche-o antes de atualizar ou desinstalar.
-- A prévia 2.4.0 **não possui certificado Authenticode**. O instalador também não está assinado e **pode acionar o Microsoft Defender SmartScreen**. Não é uma correção de reputação ou assinatura. Veja [orientações de segurança](WINDOWS_CODE_SIGNING.md).
+- A release v2.4.0 **não possui certificado Authenticode**. O instalador também não está assinado e **pode acionar o Microsoft Defender SmartScreen**. Não é uma correção de reputação ou assinatura. Veja [orientações de segurança](WINDOWS_CODE_SIGNING.md).
 
 ## Instalar e remover
 
-1. Baixe `CartoRig-2.4.0-Preview-Setup-Windows-x64.exe` do artefato de QA da Etapa 2.4.
-2. Compare o SHA-256 publicado para o instalador com `Get-FileHash .\CartoRig-2.4.0-Preview-Setup-Windows-x64.exe -Algorithm SHA256`.
+1. Baixe `CartoRig-2.4.0-Setup-Windows-x64.exe` do artefato de QA da Etapa 2.4.
+2. Compare o SHA-256 publicado para o instalador com `Get-FileHash .\CartoRig-2.4.0-Setup-Windows-x64.exe -Algorithm SHA256`.
 3. Execute o instalador e siga o assistente. Escolha se deseja um atalho na área de trabalho.
 4. Inicie o CartoRig pelo **menu Iniciar → CartoRig Desktop**.
 5. Para remover, abra **Configurações → Aplicativos instalados → CartoRig Desktop (2.4.0 Preview) → Desinstalar**.
@@ -46,4 +46,4 @@ A suíte verifica:
 - `--self-check` e inicialização GUI pelo caminho instalado;
 - desinstalação real, remoção de binários e atalhos e preservação de dados do usuário.
 
-A instalação normal usa interface visual; somente o teste CI utiliza modo silencioso. A tag estável `v2.2.0` e a `main` não são alteradas por esta prévia.
+A instalação normal usa interface visual; somente o teste CI utiliza modo silencioso. A release v2.4.0 incorpora as Etapas 2.3 e 2.4; projetos e preferências permanecem preservados.
