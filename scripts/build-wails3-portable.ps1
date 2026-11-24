@@ -99,6 +99,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Stage 2.3 drawing workflows regression failed' }
     & node tests/test_ui_stage24_looks.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Stage 2.4 simplified Looks regression failed' }
+    & node tests/test_windows_signing_policy.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Windows code signing security policy regression failed' }
     & node --check assets/looks-quick.js
     if ($LASTEXITCODE -ne 0) { throw 'Stage 2.4 quick model JavaScript syntax invalid' }
     & node --check assets/style-studio.js
