@@ -95,6 +95,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Stage 2.1 adjustable workspace regression failed' }
     & node tests/test_ui_stage2_inspector.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Stage 2.2 contextual Inspector regression failed' }
+    & node tests/test_ui_stage23_drawing.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Stage 2.3 drawing workflows regression failed' }
+    & node --check assets/creative-interaction.js
+    if ($LASTEXITCODE -ne 0) { throw 'Drawing feedback JavaScript syntax invalid' }
     & node --check assets/inspector-layout.js
     if ($LASTEXITCODE -ne 0) { throw 'Contextual Inspector tab module syntax invalid' }
     & node --check assets/creative-inspector.js
