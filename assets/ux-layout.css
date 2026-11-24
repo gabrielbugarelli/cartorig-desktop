@@ -470,3 +470,30 @@ button:disabled{cursor:not-allowed}
 .ux-inspector-section .style14-inspector-actions>button{flex:1;min-width:92px}
 @media(max-width:980px){.ux-inspector-tab{min-height:38px;font-size:11px}}
 @media(prefers-reduced-motion:reduce){.ux-inspector-tab{transition:none}}
+
+
+/* UI/UX Stage 2.3 — drawing feedback stays over the canvas, not in dialogs.
+   Existing toolstrip controls and WGS84 projection remain unchanged. */
+.canvas-wrap{position:relative}
+.ux-creative-guide{
+ position:absolute;top:12px;left:50%;transform:translateX(-50%);
+ z-index:12;max-width:min(92%,580px);width:max-content;
+ padding:10px 14px;border-radius:9px;
+ background:rgba(17,38,56,.94);border:1px solid #7199b5;
+ box-shadow:0 4px 16px #0007;color:#f4faff;
+ font-size:12px;font-weight:650;line-height:1.5;
+ text-align:center;pointer-events:none;white-space:normal;
+ overflow-wrap:break-word;
+}
+.ux-creative-guide[hidden]{display:none!important}
+.ux-creative-guide[data-step="EDIT"]{border-color:#e1bc80}
+.toolstrip[data-active-tool="route"] #toolRoute,
+.toolstrip[data-active-tool="shape"] #toolShape,
+.toolstrip[data-active-tool="marker"] #toolMarker,
+.toolstrip[data-active-tool="label"] #toolLabel{
+ outline:2px solid #85c5ea;outline-offset:-2px;
+}
+@media(max-width:980px){
+ .ux-creative-guide{top:6px;padding:8px 10px;font-size:11px;max-width:96%}
+}
+@media(prefers-reduced-motion:reduce){.ux-creative-guide{transition:none}}
