@@ -1,6 +1,7 @@
 name: CartoRig UI Stage 2.4 Looks One-time Windows QA
 # UI/UX development: manually start builds only when a portable is needed.
 # Public repository + standard windows-2022 runner: no metered runner compute.
+# QA rerun with inherited initial map border overrides covered.
 # Single public/free Windows QA for approved source without persistent push triggers.
 on:
   push:
