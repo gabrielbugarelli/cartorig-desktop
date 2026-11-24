@@ -95,6 +95,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Stage 2.1 adjustable workspace regression failed' }
     & node tests/test_ui_stage2_inspector.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Stage 2.2 contextual Inspector regression failed' }
+    & node tests/test_ui_stage23_drawing.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Stage 2.3 drawing workflows regression failed' }
+    & node --check assets/creative-interaction.js
+    if ($LASTEXITCODE -ne 0) { throw 'Drawing feedback JavaScript syntax invalid' }
     & node --check assets/inspector-layout.js
     if ($LASTEXITCODE -ne 0) { throw 'Contextual Inspector tab module syntax invalid' }
     & node --check assets/creative-inspector.js
@@ -166,7 +170,7 @@ try {
     $rsrc=Join-Path (& go env GOPATH) 'bin/rsrc.exe'
     & $rsrc -ico $ico -arch amd64 -o 'cartorig_windows_amd64.syso'
     if ($LASTEXITCODE -ne 0) { throw 'Cannot embed CartoRig Windows icon' }
-    $out='dist/CartoRig-2.2.0-Wails3-Portable-Windows-x64.exe'
+    $out='dist/CartoRig-2.3.0-Preview-Wails3-Portable-Windows-x64.exe'
     try {
         & go build -trimpath -tags 'wails,production,fullgeo' -ldflags '-s -w -H=windowsgui' -o $out .
         if ($LASTEXITCODE -ne 0) { throw 'Wails 3 Windows compilation failed' }

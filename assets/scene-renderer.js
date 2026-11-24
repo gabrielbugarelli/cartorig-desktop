@@ -1,6 +1,7 @@
 /* CartoRig 1.2 — deterministic RGBA scene renderer; geographic camera + antimeridian wrapping. MIT. */
 import {COLORS,clamp,treeIds,isVisible,ancestors,texturesEnabled} from './scene-core.js';
 import {drawCreative,hitCreative,creativeHandles} from './creative-renderer.js';
+import {drawHandle,handleRole} from './creative-interaction.js';
 import {paletteFor,resolveStyle,themeValue} from './style-resolver.js';
 import {withIsolatedSurface,blending,applyAtmosphere,setRenderTile} from './style-effects.js';
 import {paintMapLabels} from './map-labels.js';
@@ -354,9 +355,11 @@ export function drawPreviewSelection(ctx,doc,countries,images,w,h,selection=[]){
    const geom=findRegionGeometry(o,images._geo,byIso,doc.camera.zoom);
    if(geom)drawPolygon(ctx,doc,geom,w,h,false,true);
   }else if(['Label','Marker','Route','Shape'].includes(o.type)){
-   for(const handle of creativeHandles(doc,o,w,h,project)){
-    const [x,y]=handle.xy;ctx.fillStyle='#12344d';
-    ctx.fillRect(x-5,y-5,10,10);ctx.strokeRect(x-6,y-6,12,12);
+   // Semantic shape and color distinguish anchor / waypoint / Callout box /
+   // shape vertex; the larger pointer hit area is handled by app.js.
+   const handles=creativeHandles(doc,o,w,h,project);
+   for(const handle of handles){
+    drawHandle(ctx,...handle.xy,handleRole(o,handle.index,handles.length));
    }
   }
   ctx.restore();
