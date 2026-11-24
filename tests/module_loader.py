@@ -22,6 +22,7 @@ def browser_bundle(assets, include_app=True):
         'material-projection.js':'MATERIAL_TILE_LONGITUDE_DEGREES materialPatternTransform',
         'scene-renderer.js':'polygonParts boundsOf pointInside scaleFor project unproject unwrapRing polygonCacheStats clearPolygonPathCache previewTextureStats textureRenderStats stateBoundaryStats drawObject renderScene renderMapLabelLayer renderRegionMask hitTest hitTestCandidates',
         'style-studio.js':'setupStyleStudio',
+        'looks-quick.js':'QUICK_LOOK_FIELDS QUICK_LOOK_KEYS quickLookField lookFieldStatus countLookCustomizations quickLookValue quickLookPercent validateQuickValue',
         'style-inspector.js':'renderAdvancedInspector',
         'production-vector.js':'escapeXML serializeVectorScene',
         'production-templates.js':'PROJECT_TEMPLATES createTemplate',
