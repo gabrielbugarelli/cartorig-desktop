@@ -39,8 +39,10 @@ try{
     Where-Object {($_ | Get-ItemProperty -ErrorAction SilentlyContinue).DisplayName -like 'CartoRig Desktop*'})
   if($uninstallKey.Count -lt 1){throw 'No installed-app registration found in current user uninstall registry'}
   Write-Host 'Installer registry, Start Menu, license and SHA256 verified'
-  & $app --self-check
-  if($LASTEXITCODE -ne 0){throw 'Installed EXE failed --self-check'}
+  # Windows GUI subsystem processes do not reliably set PowerShell's
+  # $LASTEXITCODE when invoked directly. Start-Process exposes ExitCode.
+  $selfCheck=Start-Process -FilePath $app -ArgumentList '--self-check' -Wait -PassThru
+  if($selfCheck.ExitCode -ne 0){throw "Installed EXE failed --self-check: $($selfCheck.ExitCode)"}
   $gui=Start-Process -FilePath $app -PassThru
   try{
     Start-Sleep -Seconds 7
