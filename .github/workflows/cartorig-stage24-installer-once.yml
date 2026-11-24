@@ -1,6 +1,7 @@
 name: CartoRig 2.4.0 Preview Installed Windows QA (One-time)
 # One-shot build on a public repo and standard windows-2022 runner.
 # Reuse the previously approved portable EXE; do not silently replace it.
+# QA rerun after fixing GUI-subsystem self-check exit-code capture.
 on:
   push:
     branches:
