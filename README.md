@@ -1,8 +1,10 @@
-# CartoRig Desktop v2.2.0 — UI/UX Etapas 2.1 e 2.2
+# CartoRig Desktop v2.4.0 — UI/UX Etapas 2.3 e 2.4
 
-Release estável Windows x64: [v2.2.0](https://github.com/gabrielbugarelli/cartorig-desktop/releases/tag/v2.2.0) · [Notas da versão](docs/releases/v2.2.0.md).
+Release estável Windows x64: [v2.4.0](https://github.com/gabrielbugarelli/cartorig-desktop/releases/tag/v2.4.0) · [Notas da versão](docs/releases/v2.4.0.md). A versão inclui **instalador Windows tradicional**, além do portable.
 
-**Novidades:** Workspace ajustável com barras laterais redimensionáveis e layout persistente; Inspector contextual com seções **Basic**, **Position**, **Appearance** e **Advanced** para Callout, Label, Route, Marker, Region e multisseleção.
+**Assinatura de aplicativos Windows:** a release v2.4.0 ainda é distribuída sem certificado Authenticode e pode gerar o aviso “O Windows protegeu o computador” / “Fornecedor desconhecido”. A integração de assinatura pública **SignPath Foundation** está preparada, mas depende de cadastro e aprovação externa; nenhum build foi apresentado como assinado sem certificado. Consulte a [orientação de assinatura e SmartScreen](docs/WINDOWS_CODE_SIGNING.md).
+
+**Novidades da v2.4.0:** ferramentas de desenho com prévias, guias contextuais, alças diferenciadas e finalização consistente; Looks com **Quick adjustments** e **Advanced customization**, herança/customização de propriedades e controle independente de terra/oceano. Mantidas as melhorias do Workspace e Inspector da v2.2.0.
 
 **Mantido da v2.1.0:** em MAP DISPLAY, os checkboxes **Land textures** e **Ocean textures** controlam terra e mar de maneira independente. Projetos `.cartorig` anteriores continuam compatíveis.
 

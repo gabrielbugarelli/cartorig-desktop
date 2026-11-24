@@ -1,4 +1,5 @@
 import {LAND_MATERIAL_IDS,OCEAN_MATERIAL_IDS,RELIEF_PROFILES,LOOK_MATERIAL_RECIPES,LOOK_FAMILIES} from './look-materials.js';
+import {QUICK_LOOK_FIELDS,QUICK_LOOK_KEYS,lookFieldStatus,countLookCustomizations,quickLookPercent,quickLookValue,validateQuickValue} from './looks-quick.js';
 /* CartoRig 1.4 — Style Studio, strictly driven by CommandBus. MIT. */
 import {COLORS,MAP_LABEL_KINDS,MAP_LABEL_SIZES,texturesEnabled} from './scene-core.js';
 import {REFERENCE_LOOKS} from './reference-looks.js';
@@ -82,6 +83,11 @@ function presetButton(key,name,selected,palette,apply){
   thumb.style.background=`linear-gradient(135deg,${palette.ocean} 0%,${palette.ocean} 38%,${palette.land} 39%,${palette.land} 73%,${palette.accent||palette.border} 74%)`;
  }
  b.append(thumb,document.createTextNode(name));
+ // Stable look metadata; previews are still the original version-locked PNGs.
+ const family=LOOK_MATERIAL_RECIPES[key]?.family||reference?.category||'Custom';
+ const meta=el('small','style14-preset-meta',family);
+ const badge=el('small','style14-preset-custom','Customized');badge.hidden=true;
+ b.append(meta,badge);
  b.onclick=()=>apply({type:'ApplyTheme',id:key});return b;
 }
 export function setupStyleStudio({getDoc,getSelection=()=>[],exec,toast,downloadable,getToken}){
@@ -110,6 +116,10 @@ export function setupStyleStudio({getDoc,getSelection=()=>[],exec,toast,download
  galleryCategory.onchange=filterGallery;gallerySearch.oninput=filterGallery;
  // Two task-based views keep advanced editing one click away, without traversing 36 cards.
  const controlsArea=el('div','style14-controls-area');
+ const quickArea=el('section','ux-looks-quick');quickArea.id='style14QuickAdjustments';
+ const advancedArea=el('details','ux-looks-advanced');advancedArea.id='style14AdvancedCustomization';
+ const advancedBody=el('div','ux-looks-advanced-body');
+ advancedArea.append(el('summary','','Advanced customization'),advancedBody);
  const mapControls=$('uxMapBoundaries');
  const viewSwitch=el('div','ux-look-switch');viewSwitch.setAttribute('role','group');viewSwitch.setAttribute('aria-label','Appearance view');
  const chooseButton=el('button','active','Choose look');chooseButton.id='style14ModeChoose';
@@ -121,7 +131,8 @@ export function setupStyleStudio({getDoc,getSelection=()=>[],exec,toast,download
  galleryView.append(galleryTools,presetBox);
  customizeView.append(controlsArea);
  root.replaceChildren(viewSwitch,galleryView,customizeView);
- let activeView='choose';
+ let activeView='choose';let advancedOpen=false;
+ advancedArea.addEventListener('toggle',()=>{advancedOpen=advancedArea.open;});
  function setView(which){
   activeView=which==='customize'?'customize':'choose';
   galleryView.hidden=activeView!=='choose';customizeView.hidden=activeView!=='customize';
@@ -134,11 +145,16 @@ export function setupStyleStudio({getDoc,getSelection=()=>[],exec,toast,download
  setView('choose');
  for(const [key,name] of builtInLooks)presetBox.append(presetButton(key,name,false,COLORS[key],exec));
  filterGallery();
- function updateLookSelection(currentId){
+ function updateLookSelection(currentId,doc=getDoc()){
+  const customizations=countLookCustomizations(doc);
   for(const card of presetBox.querySelectorAll('[data-style]')){
    const selected=card.dataset.style===currentId;
    card.classList.toggle('active',selected);
+   card.classList.toggle('customized',selected&&customizations>0);
    card.setAttribute('aria-pressed',String(selected));
+   card.dataset.customized=String(selected&&customizations>0);
+   const indicator=card.querySelector('.style14-preset-custom');
+   if(indicator){indicator.hidden=!selected||!customizations;indicator.textContent=customizations+' customized';}
   }
  }
 
@@ -192,13 +208,24 @@ export function setupStyleStudio({getDoc,getSelection=()=>[],exec,toast,download
   let doc=getDoc(),palette=paletteFor(doc),over=doc.theme.overrides||{};
   const focusedLook=document.activeElement?.closest?.('#presets [data-style]')?.dataset.style;
   const sidebar=$('rightSidebar'),scrollPosition=sidebar?.scrollTop;
-  controlsArea.replaceChildren();
+  controlsArea.replaceChildren();quickArea.replaceChildren();advancedBody.replaceChildren();
+  advancedArea.open=advancedOpen;
   // Object-specific effects live solely in the Inspector; the Looks panel only edits scene appearance.
-  updateLookSelection(doc.theme.id);
-  // Global controls are first, artistic finish second; all remain CommandBus-backed.
+  updateLookSelection(doc.theme.id,doc);
+  const activeName=builtInLooks.find(([id])=>id===doc.theme.id)?.[1]
+   ||doc.style_library?.find(x=>x.id===doc.theme.id)?.name||doc.theme.id;
+  const activeFamily=LOOK_MATERIAL_RECIPES[doc.theme.id]?.family||'Custom style';
+  const changes=countLookCustomizations(doc);
+  const title=el('div','ux-looks-active');
+  title.append(el('strong','',activeName),
+   el('small','',activeFamily+' · '+(changes?changes+' customized setting'+(changes!==1?'s':''):'Using look defaults')));
+  quickArea.append(title);
+  const quickHeading=el('h3','','Quick adjustments');quickHeading.id='style14QuickTitle';
+  quickArea.setAttribute('aria-labelledby','style14QuickTitle');quickArea.append(quickHeading);
+  // Global/advanced groups retain existing CommandBus controls and their order.
   const globalHeading=el('div','ux-settings-divider','GLOBAL COMPOSITION');
   const artisticHeading=el('div','ux-settings-divider ux-artistic-divider','ARTISTIC FINISH');
-  controlsArea.append(globalHeading);
+  advancedBody.append(globalHeading);
   // Independent project-level visibility for each geographic surface.
   // Keep the controls together in MAP DISPLAY next to state boundaries.
   const textureToggles=[
@@ -215,19 +242,69 @@ export function setupStyleStudio({getDoc,getSelection=()=>[],exec,toast,download
   const textureSlot=mapControls?.querySelector('#uxMapTextureSlot');
   if(textureSlot){
    textureSlot.replaceChildren(...textureToggles);
-   controlsArea.append(mapControls);
+   quickArea.append(mapControls);
   }else{
-   controlsArea.append(...textureToggles);
+   quickArea.append(...textureToggles);
   }
-  controlsArea.append(buildMapLabels(doc,palette));
+  // The simplest scene-wide controls are always visible. Every change is a
+  // SetThemeProperty command so it remains undoable and .cartorig-compatible.
+  for(const field of QUICK_LOOK_FIELDS){
+   const {key,label,kind}=field,value=quickLookValue(doc,key),state=lookFieldStatus(doc,key);
+   const row=el('div','ux-quick-field');row.dataset.quickField=key;row.dataset.state=state;
+   const head=el('div','ux-quick-heading');
+   const labelEl=el('label','',label);
+   const stateText=el('small','ux-quick-state',state);
+   head.append(labelEl,stateText);row.append(head);
+   if(kind==='strength'){
+    const line=el('div','ux-quick-range');
+    const slider=el('input','style14-range');
+    slider.type='range';slider.min=field.min;slider.max=field.max;slider.step=field.step;
+    slider.value=value;slider.disabled=state==='disabled';slider.id='quick-'+key;
+    slider.setAttribute('aria-label',label);
+    labelEl.htmlFor=slider.id;
+    const output=el('output','',quickLookPercent(doc,key)+'%');
+    output.htmlFor=slider.id;
+    slider.oninput=()=>{output.textContent=Math.round(Number(slider.value)*100)+'%';};
+    slider.onchange=()=>{
+     const next=Number(slider.value);
+     if(validateQuickValue(key,next))exec({type:'SetThemeProperty',key,value:next});
+     else{toast('Invalid '+label,true);draw();}
+    };
+    line.append(slider,output);row.append(line);
+   }else{
+    const line=el('div','ux-quick-color');
+    const picker=el('input','control compact');picker.type='color';
+    picker.id='quick-'+key;picker.value=colorVal(value);
+    picker.setAttribute('aria-label',label);labelEl.htmlFor=picker.id;
+    const hex=el('input','control compact ux-quick-hex');
+    hex.value=value;hex.maxLength=9;hex.setAttribute('aria-label',label+' hexadecimal');
+    picker.onchange=()=>exec({type:'SetThemeProperty',key,value:picker.value});
+    hex.onchange=()=>{if(validateQuickValue(key,hex.value))exec({type:'SetThemeProperty',key,value:hex.value});
+     else{toast('Invalid '+label,true);draw();}};
+    line.append(picker,hex);row.append(line);
+   }
+   if(state==='customized'||(state==='disabled'&&Object.hasOwn(over,key)&&over[key]!==null)){
+    const reset=el('button','style14-reset ux-quick-reset','Restore look default');
+    reset.dataset.revertTheme=key;reset.title='Remove only this look override';
+    reset.onclick=()=>exec({type:'SetThemeProperty',key,value:null});
+    row.append(reset);
+   }
+   quickArea.append(row);
+  }
+  // Map labels are scene-wide controls and not duplicated in the Inspector.
+  quickArea.append(buildMapLabels(doc,palette));
+  controlsArea.append(quickArea,advancedArea);
   const priority=['BORDERS & GRID','LAND & OCEAN','ATMOSPHERE','DEFAULT TYPOGRAPHY'];
   const orderedGroups=[...priority.map(name=>groups.find(([heading])=>heading===name)),...groups.filter(([heading])=>!priority.includes(heading))].filter(Boolean);
   for(const [heading,fields] of orderedGroups){
-   if(heading==='SURFACES & MATERIALS')controlsArea.append(artisticHeading);
+   if(heading==='SURFACES & MATERIALS')advancedBody.append(artisticHeading);
    let section=el('details','style14-group');section.open=openGroups.has(heading);
    section.addEventListener('click',event=>{if(event.target.closest('summary')){if(section.open)openGroups.delete(heading);else openGroups.add(heading);}});
    section.append(el('summary','',heading));
    for(const [key,label,type,lo,hi,step] of fields){
+    // The frequent intensity and color fields are owned by Quick adjustments:
+    // never render a second editor with a potentially stale value.
+    if(QUICK_LOOK_KEYS.includes(key))continue;
     if(heading==='SURFACES & MATERIALS'&&key==='surface_material')
      section.append(el('div','ux-field-subhead','LAND · CONTINENTS ONLY'));
     if(heading==='SURFACES & MATERIALS'&&key==='ocean_material')
@@ -266,11 +343,14 @@ export function setupStyleStudio({getDoc,getSelection=()=>[],exec,toast,download
      const hex=el('input','control compact style14-hex');hex.value=value;hex.setAttribute('aria-label',label+' hexadecimal');hex.maxLength=9;
      hex.onchange=()=>{if(/^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(hex.value))exec({type:'SetThemeProperty',key,value:hex.value});else toast('Invalid hexadecimal color',true);};section.append(hex);
     }
-    if(overridden){const reset=el('button','style14-reset','Revert '+label);reset.dataset.revertTheme=key;
+    const state=overridden?'customized':'inherited';
+    wrap.dataset.state=state;
+    const stateInfo=el('small','ux-field-state',state);section.append(stateInfo);
+    if(overridden){const reset=el('button','style14-reset','Restore look default · '+label);reset.dataset.revertTheme=key;
      reset.title='Restore the currently selected theme default without changing other fields';
      reset.onclick=()=>exec({type:'SetThemeProperty',key,value:null});section.append(reset);}
    }
-   controlsArea.append(section);
+   if(section.children.length>1)advancedBody.append(section);
   }
   const sect=el('details','style14-group');sect.open=openGroups.has('OBJECT TYPE DEFAULTS');
   sect.addEventListener('click',event=>{if(event.target.closest('summary')){if(sect.open)openGroups.delete('OBJECT TYPE DEFAULTS');else openGroups.add('OBJECT TYPE DEFAULTS');}});
@@ -311,7 +391,7 @@ export function setupStyleStudio({getDoc,getSelection=()=>[],exec,toast,download
   const resetCategory=el('button','style14-reset','Reset ALL '+selectedType+' defaults');
   resetCategory.onclick=()=>{if(confirm('Reset defaults for '+selectedType+'?'))exec({type:'ResetCategoryStyle',object_type:selectedType});};
   pick.addEventListener('change',()=>resetCategory.textContent='Reset ALL '+selectedType+' defaults');
-  sect.append(resetCategory);controlsArea.insertBefore(sect,artisticHeading);
+  sect.append(resetCategory);advancedBody.insertBefore(sect,artisticHeading);
   const library=el('div','style14-library');
   const create=el('button','','Save Current Style');create.id='style14Save';create.onclick=()=>{const name=prompt('Style name','My Cinematic Style');if(name?.trim())exec({type:'SaveUserStyle',name:name.trim()});};library.append(create);
   const imp=el('button','','Import .cartorigstyle');imp.id='style14Import';imp.onclick=()=>$('style14File').click();library.append(imp);

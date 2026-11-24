@@ -499,3 +499,67 @@ button:disabled{cursor:not-allowed}
 .canvas-wrap.ux-handle-hover #mapCanvas{cursor:grab}
 .canvas-wrap.ux-handle-hover.dragging #mapCanvas{cursor:grabbing}
 @media(prefers-reduced-motion:reduce){.ux-creative-guide{transition:none}}
+
+
+/* UI/UX 2.4 — task-oriented Looks. The fixed preview thumbnails and palette
+ * editor remain intact; frequent controls are above the advanced fold. */
+.ux-looks-quick{
+ display:flex;flex-direction:column;gap:9px;min-width:0;
+}
+.ux-looks-active{
+ display:flex;flex-direction:column;gap:3px;
+ border:1px solid #3c657f;background:#1b3448;border-radius:8px;
+ padding:10px 12px;
+}
+.ux-looks-active strong{font-size:13px;color:#f0f9ff;overflow-wrap:anywhere}
+.ux-looks-active small{font-size:11px;line-height:1.4;color:#a9c9dc}
+.ux-looks-quick>h3{
+ font-size:12px;letter-spacing:.15px;font-weight:700;
+ color:#dceefb;margin:6px 0 0;
+}
+.ux-quick-field{
+ display:flex;flex-direction:column;gap:6px;min-width:0;
+ padding:9px 10px;border:1px solid #344d61;border-radius:7px;
+ background:#172b3b;
+}
+.ux-quick-heading{display:flex;align-items:start;justify-content:space-between;gap:8px}
+.ux-quick-heading label{font-size:11px;font-weight:650;color:#dce9f4;line-height:1.4}
+.ux-quick-state,.ux-field-state{
+ font-size:9px;letter-spacing:.35px;text-transform:uppercase;
+ color:#9ec4dc;white-space:nowrap;
+}
+.ux-quick-field[data-state="customized"]{border-color:#588cad}
+.ux-quick-field[data-state="customized"] .ux-quick-state{color:#92d2f2}
+.ux-quick-field[data-state="disabled"]{opacity:.72}
+.ux-quick-field[data-state="disabled"] .ux-quick-state{color:#ddc49c}
+.ux-quick-range{display:grid;grid-template-columns:minmax(0,1fr) 38px;gap:7px;align-items:center}
+.ux-quick-range input{width:100%;min-width:0;accent-color:#8dc6ef}
+.ux-quick-range output{text-align:right;font-size:11px;color:#d3ecf9;font-variant-numeric:tabular-nums}
+.ux-quick-color{display:grid;grid-template-columns:46px minmax(0,1fr);gap:7px}
+.ux-quick-color input{min-width:0}
+.ux-quick-color input[type="color"]{padding:2px;width:46px;height:32px}
+.ux-quick-hex{font-family:Consolas,monospace}
+.ux-quick-reset{width:100%;text-align:left}
+.ux-looks-advanced{min-width:0;border:1px solid #39566b;border-radius:8px;background:#142637}
+.ux-looks-advanced>summary{
+ padding:12px;color:#dceefc;font-size:12px;font-weight:700;
+ cursor:pointer;min-height:40px;list-style:disclosure-closed;
+}
+.ux-looks-advanced[open]>summary{border-bottom:1px solid #314e61;list-style:disclosure-open}
+.ux-looks-advanced-body{display:flex;flex-direction:column;gap:9px;padding:10px}
+.ux-looks-advanced-body .style14-group{min-width:0}
+.ux-looks-advanced-body .ux-field-state{display:block;margin:2px 0 4px}
+.style14-preset-meta{
+ display:block;font-size:9px;font-weight:500;
+ color:#a2c2d6;line-height:1.3;overflow-wrap:anywhere;
+}
+.style14-preset-custom{
+ display:block;font-size:9px;color:#d4e5f4;background:#2d536b;
+ border:1px solid #5286a5;border-radius:4px;padding:2px 4px;
+}
+.style14-preset-custom[hidden]{display:none!important}
+#presets .style14-preset.customized{border-color:#80b6d4}
+@media(max-width:980px){
+ .ux-quick-field{padding:10px}
+ .ux-quick-range output{font-size:11px}
+}

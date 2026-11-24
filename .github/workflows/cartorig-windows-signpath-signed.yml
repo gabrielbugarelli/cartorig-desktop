@@ -1,0 +1,105 @@
+name: CartoRig Signed Windows Portable (SignPath OSS)
+# Manual-only. Never label an unsigned EXE as a signed Windows build.
+# SignPath Foundation approval + signing policy and token required.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: cartorig-signpath-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  sign-verified-windows:
+    if: ${{ github.event.repository.private == false && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/ui-ux-stage24') }}
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - name: Verify signing integration is configured before build
+        shell: pwsh
+        env:
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          SIGNPATH_PROJECT_SLUG: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          SIGNPATH_SIGNING_POLICY_SLUG: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+        run: |
+          $ErrorActionPreference='Stop'
+          foreach($name in @('SIGNPATH_API_TOKEN','SIGNPATH_ORGANIZATION_ID','SIGNPATH_PROJECT_SLUG','SIGNPATH_SIGNING_POLICY_SLUG')){
+            if([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))){
+              throw "SignPath configuration is missing: $name. See docs/WINDOWS_CODE_SIGNING.md. This job will NOT distribute an unsigned file."
+            }
+          }
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.x'
+          cache: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build tested portable from this repository
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          node tests/test_ui_stage23_drawing.mjs
+          node tests/test_ui_stage24_looks.mjs
+          node tests/test_surface_texture_switches.mjs
+          node tests/test_callout_geo_anchor.mjs
+          ./scripts/build-wails3-portable.ps1
+          $exe=@(Get-ChildItem dist -File -Filter 'CartoRig-*-Wails3-Portable-Windows-x64.exe')
+          if($exe.Count -ne 1){throw 'Expected exactly one CartoRig Windows executable'}
+          $signature=Get-AuthenticodeSignature -LiteralPath $exe[0].FullName
+          if($signature.SignerCertificate){throw 'SignPath must receive an unsigned build from the verified workflow'}
+      - name: Upload unsigned EXE for authenticated source verification by SignPath
+        id: unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: cartorig-source-verified-unsigned-exe
+          path: dist/CartoRig-*-Wails3-Portable-Windows-x64.exe
+          retention-days: 3
+          if-no-files-found: error
+      - name: Request trusted signature from SignPath Foundation
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signpath-output
+      - name: Verify Authenticode, regenerate SHA256 and package ONLY signed executable
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $signed=@(Get-ChildItem signpath-output -Recurse -File -Filter '*.exe')
+          $original=@(Get-ChildItem dist -File -Filter 'CartoRig-*-Wails3-Portable-Windows-x64.exe')
+          if($signed.Count -ne 1 -or $original.Count -ne 1){
+            throw 'Expected exactly one signed and one original executable'
+          }
+          if($signed[0].Name -ne $original[0].Name){
+            throw "SignPath returned unexpected file: $($signed[0].Name)"
+          }
+          New-Item -ItemType Directory -Force -Path dist/signed | Out-Null
+          $signedDestination=Join-Path (Resolve-Path dist/signed).Path $signed[0].Name
+          Copy-Item -LiteralPath $signed[0].FullName -Destination $signedDestination
+          & ./scripts/verify-windows-signature.ps1 -ExePath $signedDestination
+          if($LASTEXITCODE -and $LASTEXITCODE -ne 0){throw 'Executable signature validation failed'}
+          $digest=(Get-FileHash -LiteralPath $signedDestination -Algorithm SHA256).Hash.ToLowerInvariant()
+          $checksum=Join-Path (Resolve-Path dist/signed).Path 'CartoRig-Signed-Windows-x64-SHA256.txt'
+          "$digest  $($signed[0].Name)" | Set-Content -Encoding ascii -LiteralPath $checksum
+          $portable=(Join-Path (Resolve-Path dist).Path 'CartoRig-Signed-Windows-x64-Portable.zip')
+          Compress-Archive -LiteralPath $signedDestination,$checksum -DestinationPath $portable -CompressionLevel Optimal
+          $written=Get-Content -Raw -LiteralPath $checksum
+          if(!$written.StartsWith($digest)){throw 'Post-signature SHA256 verification failed'}
+          Write-Host 'Signed Windows executable and portable ZIP verified'
+      - name: Upload verified SIGNED Windows portable
+        uses: actions/upload-artifact@v4
+        with:
+          name: CartoRig-Verified-SIGNED-Windows-x64-Portable
+          path: |
+            dist/signed/*.exe
+            dist/signed/CartoRig-Signed-Windows-x64-SHA256.txt
+            dist/CartoRig-Signed-Windows-x64-Portable.zip
+          if-no-files-found: error
+          retention-days: 3
