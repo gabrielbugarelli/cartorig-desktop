@@ -71,7 +71,7 @@ jobs:
         env:
           CARTORIG_NO_GUI_ERRORS: '1'
         run: |
-          $exe = (Resolve-Path 'dist/CartoRig-2.3.0-Preview-Wails3-Portable-Windows-x64.exe').Path
+          $exe = (Resolve-Path 'dist/CartoRig-2.4.0-Preview-Wails3-Portable-Windows-x64.exe').Path
           & $exe --self-check
           $logPath = Join-Path $env:LOCALAPPDATA 'CartoRig/logs/desktop-startup.log'
           if (Test-Path $logPath) { Get-Content $logPath -Tail 12 }
@@ -123,16 +123,16 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: CartoRig-2.3.0-Preview-Wails3-Windows-Smoke-Log
+          name: CartoRig-2.4.0-Preview-Wails3-Windows-Smoke-Log
           path: ~/AppData/Local/CartoRig/logs/desktop-startup.log
           if-no-files-found: ignore
           retention-days: 3
       - name: Upload portable EXE and SHA256
         uses: actions/upload-artifact@v4
         with:
-          name: CartoRig-2.3.0-Preview-Wails3-Portable-Windows-x64
+          name: CartoRig-2.4.0-Preview-Wails3-Portable-Windows-x64
           path: |
-            dist/CartoRig-2.3.0-Preview-Wails3-Portable-Windows-x64.exe
+            dist/CartoRig-2.4.0-Preview-Wails3-Portable-Windows-x64.exe
             dist/CartoRig-Wails3-SHA256.txt
           if-no-files-found: error
           retention-days: 3
