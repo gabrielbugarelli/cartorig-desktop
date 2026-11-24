@@ -35,6 +35,8 @@ jobs:
           node tests/test_ui_map_display.mjs
           node tests/test_ui_stage2_workspace.mjs
           node tests/test_ui_stage2_inspector.mjs
+          node tests/test_ui_stage23_drawing.mjs
+          node --check assets/creative-interaction.js
           node --check assets/inspector-layout.js
           node --check assets/creative-inspector.js
           node --check assets/style-inspector.js
