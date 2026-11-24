@@ -30,7 +30,7 @@ import (
 //go:embed assets
 var appFiles embed.FS
 
-const version = "2.3.0-preview"
+const version = "2.4.0-preview"
 const preferredAddress = "127.0.0.1:0"
 
 var sessionToken = makeSessionToken()
