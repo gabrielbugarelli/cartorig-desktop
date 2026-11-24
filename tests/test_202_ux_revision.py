@@ -41,6 +41,10 @@ with sync_playwright() as p:
  assert page.locator('#uxCanvasOptions').count()==0
  assert page.locator('#uxMapBoundaries').count()==1
  assert page.locator('#uxMapBoundaries').is_visible()
+ assert page.locator('#style14QuickAdjustments').is_visible()
+ assert page.locator('#style14AdvancedCustomization').count()==1
+ assert not page.locator('#style14AdvancedCustomization').evaluate('(el)=>el.open')
+ page.locator('#style14AdvancedCustomization > summary').click()
  summaries=page.locator('#style14CustomizeView .style14-group > summary').all_inner_texts()
  assert summaries[:4]==['BORDERS & GRID','LAND & OCEAN','ATMOSPHERE','DEFAULT TYPOGRAPHY'],summaries
  assert summaries.index('OBJECT TYPE DEFAULTS & EFFECTS')<summaries.index('SURFACES & MATERIALS')
