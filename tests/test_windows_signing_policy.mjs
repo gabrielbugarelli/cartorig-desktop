@@ -34,6 +34,15 @@ assert.match(script,/SignatureStatus\]::Valid/);
 assert.match(script,/UNSIGNED EXECUTABLE/);
 assert.match(script,/INVALID\/UNTRUSTED SIGNATURE/);
 assert.match(script,/1\.3\.6\.1\.5\.5\.7\.3\.3/,'Certificate must be issued for code signing');
+const localSigner=get('scripts/sign-windows-portable.ps1');
+assert.match(localSigner,/ExpectedSHA256/);
+assert.match(localSigner,/CertificateThumbprint/);
+assert.match(localSigner,/Get-FileHash/);
+assert.match(localSigner,/verify-windows-signature/);
+assert.ok(localSigner.indexOf('& $signtool sign')<localSigner.indexOf('verify-windows-signature.ps1'),
+ 'Signature verification must follow signing');
+assert.ok(localSigner.indexOf('verify-windows-signature.ps1')<localSigner.indexOf('Compress-Archive'),
+ 'Cannot package unverified executable');
 assert.match(docs,/SignPath Foundation/);
 assert.match(docs,/assinatura altera os bytes|assinatura \(a assinatura altera os bytes|assinatura.*bytes/);
 assert.match(manual,/workflow_dispatch:/,'Existing free unsigned preview workflow retained');
