@@ -1,0 +1,103 @@
+name: CartoRig v2.4.0 One-time Official GitHub Release
+# One-shot publishing on standard public Windows runner. Remove after success.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/cartorig-release-v2.4.0-once.yml'
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: cartorig-release-v2.4.0
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: "${{ github.event.repository.private == false && github.event.head_commit.message == 'ci(release): publish official CartoRig v2.4.0 once' }}"
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - name: Checkout validated release notes
+        uses: actions/checkout@v4
+      - name: Verify Windows QA, installable package and publish stable release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIOUS_MAIN_COMMIT: ${{ github.event.before }}
+        run: |
+          $ErrorActionPreference='Stop'
+          $repo=$env:GITHUB_REPOSITORY
+          $tag='v2.4.0'
+          $approvedMerge='276bcdedfd819ed3a3b87f243a621c6c7c14896e'
+          $qaRun=45321947661
+          $qaHead='e05216ccec72714b9b06c987deee793d55531e38'
+          $qaArtifact='CartoRig-v2.4.0-Official-Windows-x64-Verified'
+          $portableName='CartoRig-2.4.0-Wails3-Portable-Windows-x64.exe'
+          $setupName='CartoRig-2.4.0-Setup-Windows-x64.exe'
+          $portableSha='b619f9c2eff1eb0c0610b4a0f923cb775796f2a616c15ae440c2e1de3d04ee47'
+          $setupSha='95ca707c401924d2ae628bbcd3c1d9aa5b175d7ebfbde80b475b4b787baeef1b'
+          if($env:PREVIOUS_MAIN_COMMIT -ne $approvedMerge){throw 'Release target is not the validated merged v2.4.0 commit'}
+          if(!(Test-Path 'docs/releases/v2.4.0.md')){throw 'Approved release notes missing'}
+          if((Get-Content -Raw 'main.go') -notmatch 'const version = "2\.4\.0"'){throw 'Source version does not match release'}
+          $run=gh run view $qaRun --repo $repo --json conclusion,headSha | ConvertFrom-Json
+          if($LASTEXITCODE -ne 0 -or $run.conclusion -ne 'success' -or $run.headSha -ne $qaHead){
+            throw 'QA run did not succeed on the expected source commit'
+          }
+          New-Item -ItemType Directory -Force release-input,release-output | Out-Null
+          gh run download $qaRun --repo $repo --name $qaArtifact --dir release-input
+          if($LASTEXITCODE -ne 0){throw 'Cannot download tested Windows artifacts'}
+          $portable=@(Get-ChildItem release-input -File -Recurse -Filter $portableName)
+          $setup=@(Get-ChildItem release-input -File -Recurse -Filter $setupName)
+          $portableCheck=@(Get-ChildItem release-input -File -Recurse -Filter 'CartoRig-Wails3-SHA256.txt')
+          $setupCheck=@(Get-ChildItem release-input -File -Recurse -Filter 'CartoRig-2.4.0-Setup-Windows-x64-SHA256.txt')
+          if($portable.Count -ne 1 -or $setup.Count -ne 1 -or $portableCheck.Count -ne 1 -or $setupCheck.Count -ne 1){
+            throw 'Expected one installer, portable EXE and two checksums'
+          }
+          $h1=(Get-FileHash -LiteralPath $portable[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          $h2=(Get-FileHash -LiteralPath $setup[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          $h1Manifest=(Get-Content -Raw $portableCheck[0].FullName).Trim().Split(' ')[0].ToLowerInvariant()
+          $h2Manifest=(Get-Content -Raw $setupCheck[0].FullName).Trim().Split(' ')[0].ToLowerInvariant()
+          if($h1 -ne $portableSha -or $h1 -ne $h1Manifest -or $h2 -ne $setupSha -or $h2 -ne $h2Manifest){
+            throw 'Approved EXE/installer SHA-256 mismatch'
+          }
+          $signedApp=Get-AuthenticodeSignature -LiteralPath $portable[0].FullName
+          $signedSetup=Get-AuthenticodeSignature -LiteralPath $setup[0].FullName
+          if($signedApp.SignerCertificate -or $signedSetup.SignerCertificate){
+            throw 'Source signature state differs from QA evidence; refusing to relabel release as signed'
+          }
+          $releaseExe='release-output/'+$portableName
+          $releaseInstaller='release-output/'+$setupName
+          $releaseSha='release-output/CartoRig-2.4.0-Windows-x64-SHA256.txt'
+          $releaseInstallerSha='release-output/CartoRig-2.4.0-Setup-Windows-x64-SHA256.txt'
+          $releaseZip='release-output/CartoRig-2.4.0-Windows-x64-Portable.zip'
+          Copy-Item -LiteralPath $portable[0].FullName -Destination $releaseExe
+          Copy-Item -LiteralPath $setup[0].FullName -Destination $releaseInstaller
+          Copy-Item -LiteralPath $portableCheck[0].FullName -Destination $releaseSha
+          Copy-Item -LiteralPath $setupCheck[0].FullName -Destination $releaseInstallerSha
+          Compress-Archive -Path $releaseExe,$releaseSha -DestinationPath $releaseZip -CompressionLevel Optimal
+          Add-Type -AssemblyName System.IO.Compression
+          $archive=[System.IO.Compression.ZipFile]::OpenRead((Resolve-Path $releaseZip).Path)
+          try{
+            $names=@($archive.Entries | ForEach-Object Name)
+            if($archive.Entries.Count -ne 2 -or $portableName -notin $names -or 'CartoRig-2.4.0-Windows-x64-SHA256.txt' -notin $names){
+              throw 'Portable ZIP does not contain expected EXE and checksum'
+            }
+          }finally{$archive.Dispose()}
+          $existing=gh release view $tag --repo $repo --json tagName 2>$null
+          if($LASTEXITCODE -eq 0){throw 'Official release already exists; refusing to overwrite'}
+          gh release create $tag $releaseZip $releaseExe $releaseSha $releaseInstaller $releaseInstallerSha --repo $repo --target $approvedMerge --title 'CartoRig Desktop v2.4.0 — Ferramentas de Desenho, Looks e Instalador' --notes-file docs/releases/v2.4.0.md --latest
+          if($LASTEXITCODE -ne 0){throw 'Failed to create GitHub release'}
+          $published=gh release view $tag --repo $repo --json tagName,isDraft,isPrerelease,assets | ConvertFrom-Json
+          if($LASTEXITCODE -ne 0 -or $published.isDraft -or $published.isPrerelease -or $published.assets.Count -ne 5){
+            throw 'Stable release missing assets or incorrect publication status'
+          }
+          $actualTagSha=gh api "repos/$repo/git/ref/tags/$tag" --jq '.object.sha'
+          if($LASTEXITCODE -ne 0 -or $actualTagSha.Trim() -ne $approvedMerge){
+            throw 'Tag does not reference approved merge commit'
+          }
+          Write-Host "Published official $tag stable"
+          Write-Host "Source commit: $approvedMerge"
+          Write-Host "Installer SHA256: $h2"
+          Write-Host "Portable SHA256: $h1"
+          Write-Host "Assets: $($published.assets.Count)"
