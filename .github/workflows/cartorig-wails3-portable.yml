@@ -37,6 +37,7 @@ jobs:
           node tests/test_ui_stage2_inspector.mjs
           node tests/test_ui_stage23_drawing.mjs
           node tests/test_ui_stage24_looks.mjs
+          node tests/test_windows_signing_policy.mjs
           node --check assets/looks-quick.js
           node --check assets/style-studio.js
           node --check assets/creative-interaction.js
