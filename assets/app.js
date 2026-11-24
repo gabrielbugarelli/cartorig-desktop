@@ -9,6 +9,7 @@ import {setupProductionStudio} from './production-studio.js';
 import {GeoCatalog,geoNormalize,geoDisplayName,geoDisplayParent,featureBounds,featureFocusBounds,normalizeCountryIds,countryForRegion} from './geo-catalog.js';
 import {SHAPES,ROUTE_TYPES,MARKER_SYMBOLS,sanitizeSVG,pointValid,resolveLink} from './creative-engine.js';
 import {drawCreative,creativeHandles,settleCreativeAssets} from './creative-renderer.js';
+import {DRAWING_TOOLS,creativeGuide,isContinuousDraft,minimumDraftPoints,normalizedDraftPoints,canCommitCreativeDraft,handleHit,handleRole,drawHandle,drawDraftGuides,drawPlacementPreview} from './creative-interaction.js';
 import {creativeInspector} from './creative-inspector.js';
 import {createInspectorSections} from './inspector-layout.js';
 import {setupStyleStudio} from './style-studio.js';
@@ -368,8 +369,8 @@ function renderInspector(){let root=$('inspector');root.replaceChildren();let id
   exec,field:createField,check:createCheck,group:sectionGroup,locked,toast:showToast,
   editText:()=>openInlineText(target),importImage:importCreativeIcon,findCities:q=>geo?.search(q,'City','',8)||[],
   representative:o=>{let g=o.embedded_geometry||(o.region_kind==='Country'?countryForRegion(o,countries,geo,store.doc.camera.zoom)?.geometry:geo?.lookup?.(o.source?.dataset_id,o.source?.feature_id)?.geometry);if(!g)return null;let b=featureFocusBounds(g),mx=(b.minx+b.maxx)/2,my=(b.miny+b.maxy)/2;for(let i=0;i<45;i++)for(let j=0;j<45;j++){let lon=b.minx+(b.maxx-b.minx)*(i===0?.5:i/45),lat=b.miny+(b.maxy-b.miny)*(j===0?.5:j/45);lon=((lon+180)%360+360)%360-180;if(pointInside(lon,lat,{geometry:g}))return {lon,lat};}return null;},
-  editPath:()=>{setTool('select');editHandles=true;editOffset=false;showToast('Drag a blue handle to edit. Esc exits editing.');},
-  editOffset:()=>{setTool('select');editHandles=true;editOffset=true;showToast('Drag the marker handle to change its visual offset.');},
+  editPath:()=>{setTool('select');editHandles=true;editOffset=false;updateCreativeGuidance();showToast('Drag the colored handles to edit. Esc exits editing.');},
+  editOffset:()=>{setTool('select');editHandles=true;editOffset=true;updateCreativeGuidance();showToast('Drag the diamond handle to change the marker offset.');},
   convertShape:(o,space)=>{if(space===o.coordinate_space)return;let pts=o.points.map(pt=>space==='screen'?(()=>{let [x,y]=project(doc,pt.lon,pt.lat,canvas.width,canvas.height);return {x:clamp(x/canvas.width,0,1),y:clamp(y/canvas.height,0,1)};})():(()=>{let [lon,lat]=unproject(doc,pt.x*canvas.width,pt.y*canvas.height,canvas.width,canvas.height);return {lon,lat};})());
    // A legacy pinned box must become an actual second vertex when changing
    // coordinate spaces, otherwise two different position models compete.
@@ -475,25 +476,67 @@ function renderPreviewNow(){if(!countries.length)return;let {w,h}=updateCanvasSi
    drawOverlay:surface=>drawPreviewSelection(surface,doc,countries,images,w,h,store.selection)
   });
  }
- if(creativeDraft?.points?.length){const draft=creativePreviewObject(doc);if(draft){ctx.save();ctx.globalAlpha=.7;drawCreative(ctx,doc,draft,w,h,project);ctx.restore();}}
+ // UI-only live feedback: never dirty the SceneStore or invalidate export caches.
+ if(creativeDraft?.points?.length){
+  const draft=creativePreviewObject(doc);
+  if(draft){ctx.save();ctx.globalAlpha=.7;drawCreative(ctx,doc,draft,w,h,project);ctx.restore();}
+  drawDraftGuides(ctx,doc,creativeDraft,creativeCursor,w,h,project,(x,y,space)=>snapCreative(creativePoint(x,y,space),space));
+ }else if(creativeCursor&&!drag){
+  drawPlacementPreview(ctx,doc,tool,creativeCursor,w,h,project,creativePoint,{symbol:$('markerSymbol')?.value||'Circle'});
+ }
+ if(drag?.handle){
+  const o=doc.objects[drag.handle.id];
+  const handles=o?creativeHandles(doc,o,w,h,project):[];
+  const handle=handles.find(h=>h.index===drag.handle.index);
+  if(handle)drawHandle(ctx,...handle.xy,handleRole(o,handle.index,handles.length),{active:true});
+ }
  if(doc.canvas.transparent){ctx.save();ctx.globalCompositeOperation='destination-over';ctx.fillStyle='#202e3d';ctx.fillRect(0,0,w,h);ctx.fillStyle='#15212c';let tile=24;for(let y=0;y<h;y+=tile*2)for(let x=0;x<w;x+=tile*2){ctx.fillRect(x,y,tile,tile);ctx.fillRect(x+tile,y+tile,tile,tile);}ctx.restore();}$('previewSize').textContent=w+' × '+h;}
 function pointerXY(ev){let rect=canvas.getBoundingClientRect();return {x:(ev.clientX-rect.left)*canvas.width/rect.width,y:(ev.clientY-rect.top)*canvas.height/rect.height};}
-function setTool(name){$('toolSelect').closest('.toolstrip').dataset.activeTool=name;tool=name;routeFrom=null;creativeDraft=null;creativeCursor=null;editHandles=false;document.querySelectorAll('[id^="tool"]').forEach(b=>{if(b.tagName==='BUTTON')b.classList.toggle('active',b.id==='tool'+name[0].toUpperCase()+name.slice(1));});wrap.classList.toggle('hand',name==='pan');$('modeTag').hidden=name==='select'||name==='pan';$('modeTag').textContent={region:'Click a region to add it',route:'Choose start point · click destination · Enter completes Custom',label:'Click to place text · inline editor',marker:'Click to place a marker',shape:'Click to add points · Enter completes polygon · Esc cancels'}[name]||'';drawPreview();}
+function updateCreativeGuidance(){
+ const guide=creativeGuide({tool,draft:creativeDraft,routeType:routeTool(),shapeType:shapeTool(),editMode:editHandles,editOffset});
+ const tag=$('modeTag');
+ tag.hidden=!guide;
+ tag.textContent=guide?`${guide.step} · ${guide.message} · ${guide.help}`:'';
+ tag.dataset.step=guide?.step||'';
+}
+function setTool(name){
+ $('toolSelect').closest('.toolstrip').dataset.activeTool=name;
+ tool=name;routeFrom=null;creativeDraft=null;creativeCursor=null;editHandles=false;editOffset=false;
+ document.querySelectorAll('[id^="tool"]').forEach(b=>{
+  if(b.tagName==='BUTTON')b.classList.toggle('active',b.id==='tool'+name[0].toUpperCase()+name.slice(1));
+ });
+ wrap.classList.toggle('hand',name==='pan');
+ updateCreativeGuidance();drawPreview();
+}
 const shapeTool=()=>$('shapeType')?.value||'Line';const routeTool=()=>$('routeType')?.value||'Straight';const shapeSpace=()=>$('shapeSpace')?.value||'geo';
 function creativePoint(x,y,space=shapeSpace()){if(space==='screen')return {x:clamp(x/canvas.width,0,1),y:clamp(y/canvas.height,0,1)};let [lon,lat]=unproject(store.doc,x,y,canvas.width,canvas.height);return {lon:clamp(lon,-180,180),lat:clamp(lat,-90,90)};}
 function snapCreative(p,space){if(!$('snapCreative')?.checked)return p;if(space==='geo'){
   let markers=Object.values(store.doc.objects).filter(o=>o.type==='Marker'&&o.anchor);let xy=project(store.doc,p.lon,p.lat,canvas.width,canvas.height);
   let best=null,dist=11;for(let m of markers){let at=project(store.doc,m.anchor.lon,m.anchor.lat,canvas.width,canvas.height),d=Math.hypot(at[0]-xy[0],at[1]-xy[1]);if(d<dist){best=m.anchor;dist=d;}}if(best)return {...best};
  }return {...p};}
-function commitCreativeDraft(){if(!creativeDraft)return false;const d=creativeDraft,pts=d.points;
- if(d.type==='Route'&&pts.length>=2){let from=pts[0],to=pts.at(-1);if(from.lon===to.lon&&from.lat===to.lat)return false;insertNode('Route',{name:'Route',from,to,path_type:d.path_type,curvature:0,waypoints:d.path_type==='Custom'?pts.slice(1,-1):[],style:{stroke_color:'#efb95c',stroke_width:3,stroke_style:'Solid',arrowheads:'End'}});setTool('select');return true;}
- if(d.type==='Shape'&&pts.length>=(d.shape_kind==='Polygon'?3:2)){
-  let fields={name:d.shape_kind,shape_kind:d.shape_kind,coordinate_space:d.coordinate_space,points:pts,style:{stroke_color:'#eab766',stroke_width:3,stroke_style:'Solid',fill_color:'#eab76644',arrowheads:'End'},editorial:true};
-  // For a new Callout, both clicks are real vertices: the anchor and the
-  // box location. No screen-pinned callout_box is created implicitly.
+function commitCreativeDraft(){
+ if(!creativeDraft)return false;
+ const d=creativeDraft,pts=normalizedDraftPoints(d);
+ if(!canCommitCreativeDraft(d)){
+  showToast(`Drawing needs at least ${minimumDraftPoints(d)} distinct points`,true);
+  updateCreativeGuidance();return false;
+ }
+ if(d.type==='Route'){
+  const from=pts[0],to=pts.at(-1);
+  insertNode('Route',{name:'Route',from,to,path_type:d.path_type,curvature:0,
+   waypoints:d.path_type==='Custom'?pts.slice(1,-1):[],
+   style:{stroke_color:'#efb95c',stroke_width:3,stroke_style:'Solid',arrowheads:'End'}});
+  setTool('select');return true;
+ }
+ if(d.type==='Shape'){
+  const fields={name:d.shape_kind,shape_kind:d.shape_kind,coordinate_space:d.coordinate_space,points:pts,
+   style:{stroke_color:'#eab766',stroke_width:3,stroke_style:'Solid',fill_color:'#eab76644',arrowheads:'End'},editorial:true};
+  // Geographic Callout: real anchor + real map-based box location, not a fixed screen pin.
   if(d.shape_kind==='Callout')fields.text='Callout';
   insertNode('Shape',fields);setTool('select');return true;
- }return false;}
+ }
+ return false;
+}
 function creativePreviewObject(doc){if(!creativeDraft?.points?.length)return null;let d=creativeDraft,pts=[...d.points],cursor=creativeCursor;
  if(cursor&&pts.length){let next=snapCreative(creativePoint(cursor.x,cursor.y,d.coordinate_space||'geo'),d.coordinate_space||'geo');pts.push(next);}
  if(pts.length<2)return null;
@@ -519,10 +562,22 @@ async function installCreativeIcon(file,id){if(!file||!store.doc.objects[id])ret
  exec({type:'ImportAssetAndAssign',id,asset:{id:uuid(),name:file.name,format:mime,sha256:sha,data}});showToast('Image embedded in project · '+file.name);
  }catch(e){showToast('Asset import rejected: '+e.message,true);}}
 function canvasClick(x,y,ev){let doc=store.doc,[lon,lat]=unproject(doc,x,y,canvas.width,canvas.height);lon=clamp(lon,-180,180);lat=clamp(lat,-90,90);
- if(tool==='route'){let point=snapCreative({lon,lat},'geo'),type=routeTool();if(!creativeDraft)creativeDraft={type:'Route',path_type:type,points:[point]};else creativeDraft.points.push(point);
- if(type!=='Custom'&&creativeDraft.points.length===2)commitCreativeDraft();else{$('modeTag').textContent=type==='Custom'?'Click to add waypoints · Enter finishes · Esc cancels':'Click destination · Esc cancels';drawPreview();}return;}
- if(tool==='shape'){let kind=shapeTool(),space=shapeSpace(),point=snapCreative(creativePoint(x,y,space),space);if(!creativeDraft)creativeDraft={type:'Shape',shape_kind:kind,coordinate_space:space,points:[point]};else creativeDraft.points.push(point);
- if(!['Polygon','Freehand'].includes(kind)&&creativeDraft.points.length>=2)commitCreativeDraft();else{$('modeTag').textContent='Click vertices · Enter finishes · Esc cancels';drawPreview();}return;}
+ if(tool==='route'){
+  const point=snapCreative({lon,lat},'geo'),type=routeTool();
+  if(!creativeDraft)creativeDraft={type:'Route',path_type:type,points:[point]};
+  else creativeDraft.points.push(point);
+  if(type!=='Custom'&&creativeDraft.points.length>=2)commitCreativeDraft();
+  else{updateCreativeGuidance();drawPreview();}
+  return;
+ }
+ if(tool==='shape'){
+  const kind=shapeTool(),space=shapeSpace(),point=snapCreative(creativePoint(x,y,space),space);
+  if(!creativeDraft)creativeDraft={type:'Shape',shape_kind:kind,coordinate_space:space,points:[point]};
+  else creativeDraft.points.push(point);
+  if(!['Polygon','Freehand'].includes(kind)&&creativeDraft.points.length>=2)commitCreativeDraft();
+  else{updateCreativeGuidance();drawPreview();}
+  return;
+ }
  if(tool==='label'){openInlineText({anchor:{lon,lat}});return;}
  if(tool==='marker'){insertNode('Marker',{name:'Marker',symbol:$('markerSymbol').value||'Circle',anchor:{lon,lat},offset_x:0,offset_y:0,style:{fill_color:'#e5b467',stroke_color:'#fff',stroke_width:2,symbol_size:12}});setTool('select');return;}
  if(tool==='region'){let states=(geo?.entries||[]).filter(e=>e.type==='State'&&e.geometry&&e.bbox&&(lon>=e.bbox.minx&&lon<=e.bbox.maxx||e.bbox.maxx-e.bbox.minx>180)&&lat>=e.bbox.miny&&lat<=e.bbox.maxy);if(doc.camera.zoom>=3){let entry=states.find(e=>pointInside(lon,lat,{geometry:e.geometry}));if(entry){addGeoEntry(entry);setTool('select');return;}}
@@ -530,16 +585,45 @@ function canvasClick(x,y,ev){let doc=store.doc,[lon,lat]=unproject(doc,x,y,canva
  if(tool==='select'){let options=ev.altKey?hitTestCandidates(doc,countries,x,y,canvas.width,canvas.height,geo):null;let hit=options?.length?options[(options.indexOf(store.selection[0])+1)%options.length]:hitTest(doc,countries,x,y,canvas.width,canvas.height,geo);if(hit){if(ev.shiftKey||ev.ctrlKey||ev.metaKey)select(store.selection.includes(hit)?store.selection.filter(id=>id!==hit):[...store.selection,hit]);else select([hit]);}else select([]);}
 }
 function countryHit(lon,lat,c){let b=boundsOf(c);if(lon>=b.minx&&lon<=b.maxx&&lat>=b.miny&&lat<=b.maxy)return pointInside(lon,lat,c);return pointInside(lon,lat,c);}
-function setupCanvas(){canvas.addEventListener('dblclick',e=>{const p=pointerXY(e),id=hitTest(store.doc,countries,p.x,p.y,canvas.width,canvas.height,geo),o=store.doc.objects[id];if(o?.type==='Label'&&!isLocked(store.doc,id)){select([id]);openInlineText(o);}else if(o&&['Route','Shape','Marker'].includes(o.type)&&!isLocked(store.doc,id)){select([id]);editHandles=true;editOffset=false;setTool('select');editHandles=true;showToast('Drag blue vertex handles to edit');}});canvas.addEventListener('pointerdown',e=>{if(e.button!==0&&e.button!==1)return;let p=pointerXY(e);let doc=store.doc;drag={start:p,originalCamera:clone(doc.camera),moved:false,button:e.button,id:null,originalPoint:null};if(tool==='shape'&&shapeTool()==='Freehand'){drag.freehand=[snapCreative(creativePoint(p.x,p.y,shapeSpace()),shapeSpace())];creativeDraft={type:'Shape',shape_kind:'Freehand',coordinate_space:shapeSpace(),points:drag.freehand};}
+function finishDraftOnDoubleClick(){
+ if(!creativeDraft||!isContinuousDraft(creativeDraft))return false;
+ const pts=creativeDraft.points;
+ // Double-click fires two normal clicks first: drop the second if it is the
+ // duplicate endpoint, using display pixels rather than geographic degrees.
+ if(pts.length>=3){
+  const asXY=p=>p.lon!==undefined?project(store.doc,p.lon,p.lat,canvas.width,canvas.height):
+   [p.x*canvas.width,p.y*canvas.height];
+  const a=asXY(pts.at(-2)),b=asXY(pts.at(-1));
+  if(Math.hypot(a[0]-b[0],a[1]-b[1])<7)pts.pop();
+ }
+ const done=commitCreativeDraft();
+ if(!done){updateCreativeGuidance();drawPreview();}
+ return done;
+}
+function setupCanvas(){
+ canvas.addEventListener('dblclick',e=>{
+  if(creativeDraft&&isContinuousDraft(creativeDraft)){
+   e.preventDefault();finishDraftOnDoubleClick();return;
+  }
+  if(tool!=='select')return;
+  const p=pointerXY(e),id=hitTest(store.doc,countries,p.x,p.y,canvas.width,canvas.height,geo),o=store.doc.objects[id];
+  if(o?.type==='Label'&&!isLocked(store.doc,id)){select([id]);openInlineText(o);}
+  else if(o&&['Route','Shape','Marker'].includes(o.type)&&!isLocked(store.doc,id)){
+   select([id]);setTool('select');editHandles=true;editOffset=false;
+   updateCreativeGuidance();showToast('Drag colored handles to edit · Esc exits editing');
+  }
+ });canvas.addEventListener('pointerdown',e=>{if(e.button!==0&&e.button!==1)return;let p=pointerXY(e);let doc=store.doc;drag={start:p,originalCamera:clone(doc.camera),moved:false,button:e.button,id:null,originalPoint:null};if(tool==='shape'&&shapeTool()==='Freehand'){drag.freehand=[snapCreative(creativePoint(p.x,p.y,shapeSpace()),shapeSpace())];creativeDraft={type:'Shape',shape_kind:'Freehand',coordinate_space:shapeSpace(),points:drag.freehand};}
  if(tool==='select'&&e.button===0){let hit=hitTest(doc,countries,p.x,p.y,canvas.width,canvas.height,geo),obj=doc.objects[hit];
  // Prefer selected handles over overlapping countries, markers and shapes.
  if(editHandles){for(let id of [...store.selection].reverse()){
    const candidate=doc.objects[id];if(!candidate||isLocked(doc,id))continue;
-   let found=creativeHandles(doc,candidate,canvas.width,canvas.height,project).find(h=>Math.hypot(h.xy[0]-p.x,h.xy[1]-p.y)<15);
+   let found=handleHit(creativeHandles(doc,candidate,canvas.width,canvas.height,project),p.x,p.y);
    if(found){drag.handle={id,index:found.index};drag.originalObject=clone(candidate);break;}
  }}
  if(!drag.handle&&obj&&store.selection.includes(hit)&&['Label','Marker'].includes(obj.type)&&!isLocked(doc,hit)){drag.id=hit;drag.originalPoint=[obj.anchor.lon,obj.anchor.lat];}}canvas.setPointerCapture(e.pointerId);wrap.classList.add('dragging');});
- canvas.addEventListener('pointermove',e=>{let p=pointerXY(e),[lon,lat]=unproject(store.doc,p.x,p.y,canvas.width,canvas.height);$('cursorCoords').textContent=lat.toFixed(2)+'°, '+lon.toFixed(2)+'°';if(creativeDraft&&!drag){creativeCursor=p;drawPreview();}if(!drag)return;let dx=p.x-drag.start.x,dy=p.y-drag.start.y;if(Math.hypot(dx,dy)>4)drag.moved=true;if(!drag.moved)return;
+ canvas.addEventListener('pointermove',e=>{let p=pointerXY(e),[lon,lat]=unproject(store.doc,p.x,p.y,canvas.width,canvas.height);$('cursorCoords').textContent=lat.toFixed(2)+'°, '+lon.toFixed(2)+'°';
+ if(DRAWING_TOOLS.includes(tool)&&tool!=='region'&&!drag){creativeCursor=p;drawPreview();}
+ if(!drag)return;let dx=p.x-drag.start.x,dy=p.y-drag.start.y;if(Math.hypot(dx,dy)>4)drag.moved=true;if(!drag.moved)return;
  if(drag.handle){let {id,index}=drag.handle,obj=clone(drag.originalObject),kind=obj.type,point=creativePoint(p.x,p.y,kind==='Shape'?obj.coordinate_space:obj.type==='Label'&&obj.position_mode==='screen'?'screen':'geo');
   if(kind==='Route'){if(index===0)obj.from=point;else if(index===(obj.waypoints?.length||0)+1)obj.to=point;else obj.waypoints[index-1]=point;}
   else if(kind==='Shape'){
@@ -558,8 +642,16 @@ function setupCanvas(){canvas.addEventListener('dblclick',e=>{const p=pointerXY(
  });
  canvas.addEventListener('pointerup',e=>{if(!drag)return;let p=pointerXY(e),action=drag;drag=null;wrap.classList.remove('dragging');if(action.freehand){creativeDraft.points=action.freehand;if(creativeDraft.points.length>=2)commitCreativeDraft();else creativeDraft=null;}
  else if(action.moved&&dragPreview){let trans=dragPreview;dragPreview=null;if(trans.camera)exec({type:'SetCameraPose',pose:trans.camera});else if(trans.object){let origin=store.doc.objects[trans.id],next=trans.object;let fields={};for(let key of ['from','to','waypoints','points','callout_box','anchor','screen_pos','offset_x','offset_y'])if(JSON.stringify(origin[key])!==JSON.stringify(next[key]))fields[key]=next[key];if(Object.keys(fields).length)exec({type:'SetProperties',id:trans.id,values:fields});}else if(trans.anchor)exec({type:'SetProperty',id:trans.id,path:'anchor',value:trans.anchor});}
- else if(!action.moved&&e.button===0)canvasClick(p.x,p.y,e);drawPreview();});
- canvas.addEventListener('pointercancel',()=>{drag=null;dragPreview=null;wrap.classList.remove('dragging');drawPreview();});
+ else if(!action.moved&&e.button===0)canvasClick(p.x,p.y,e);
+ updateCreativeGuidance();drawPreview();});
+ canvas.addEventListener('pointercancel',()=>{
+  drag=null;dragPreview=null;wrap.classList.remove('dragging');
+  if(creativeDraft?.shape_kind==='Freehand')creativeDraft=null;
+  updateCreativeGuidance();drawPreview();
+ });
+ canvas.addEventListener('pointerleave',()=>{
+  if(!drag&&creativeCursor){creativeCursor=null;drawPreview();}
+ });
  canvas.addEventListener('wheel',e=>{e.preventDefault();let p=pointerXY(e),[lon1,lat1]=unproject(store.doc,p.x,p.y,canvas.width,canvas.height);let zoom=clamp(store.doc.camera.zoom*(e.deltaY<0?1.17:1/1.17),.35,80);let draft=clone(store.doc);draft.camera.zoom=zoom;let [lon2,lat2]=unproject(draft,p.x,p.y,canvas.width,canvas.height);exec({type:'SetCameraPose',pose:{zoom,center_lon:clamp(store.doc.camera.center_lon+lon1-lon2,-180,180),center_lat:clamp(store.doc.camera.center_lat+lat1-lat2,-90,90)}});},{passive:false});}
 function newProject(){if(store.dirty&&!confirm('Discard unsaved changes and create a new project?'))return;store.replace(newDocument());localStorage.removeItem(currentKey);showToast('New scene created');}
 function resetMap(){
@@ -602,13 +694,40 @@ function bindButtons(){
  $('newGroup').onclick=()=>{if(store.selection.length){if(exec({type:'GroupSelection',ids:store.selection}))expanded.add(store.selection[0]);}else {let o=madeObject('Group','New Group',{children:[]});exec({type:'CreateObject',object:o});expanded.add(o.id);}};
  $('ungroup').onclick=()=>{if(store.selection.length===1)exec({type:'Ungroup',id:store.selection[0]});};$('centerView').onclick=fitSelection;$('worldView').onclick=()=>exec({type:'SetCameraPose',pose:{center_lon:0,center_lat:10,zoom:1,bearing:0}});$('zoomIn').onclick=()=>exec({type:'SetCameraPose',pose:{zoom:store.doc.camera.zoom*1.4}});$('zoomOut').onclick=()=>exec({type:'SetCameraPose',pose:{zoom:store.doc.camera.zoom/1.4}});
  $('toolSelect').onclick=()=>setTool('select');$('toolPan').onclick=()=>setTool('pan');$('toolRegion').onclick=()=>setTool('region');$('toolRoute').onclick=()=>setTool('route');$('toolLabel').onclick=()=>setTool('label');$('toolMarker').onclick=()=>setTool('marker');$('toolShape').onclick=()=>setTool('shape');
+ // Changing shape/path/coordinate mode explicitly cancels an unfinished draft
+ // instead of silently mixing vertices with different units or geometry.
+ for(const [id,name] of [['routeType','route'],['shapeType','shape'],['shapeSpace','shape']]){
+  $(id).addEventListener('change',()=>{if(tool===name)setTool(name);});
+ }
+ $('markerSymbol').addEventListener('change',()=>{if(tool==='marker')drawPreview();});
  $('creativeAssetFile').onchange=e=>{const id=e.target.dataset.target;if(e.target.files[0])installCreativeIcon(e.target.files[0],id);e.target.value='';};
  $('addPlaceFromScene').onclick=()=>{setTab('geography');$('countrySearch').focus();};
  $('countrySearch').oninput=()=>queueCountrySearch();$('continent').onchange=()=>{updateCountryFilter();queueCountrySearch(true);};$('geoCountry').onchange=()=>queueCountrySearch(true);$('geoType').onchange=()=>queueCountrySearch(true);$('importDataset').onclick=()=>$('datasetFile').click();$('datasetFile').onchange=async e=>{await importGeoFile(e.target.files?.[0]);e.target.value='';};$('layerSearch').oninput=renderTree;
  document.querySelectorAll('[data-style]').forEach(btn=>btn.onclick=()=>exec({type:'ApplyStyle',id:btn.dataset.style}));$('showBrazilStates').onchange=e=>exec({type:'SetThemeProperty',key:'show_state_boundaries',value:e.target.checked});for(let typ of ['River','Lake','Coastline'])$('show'+typ+'s').onchange=e=>exec({type:'SetThemeProperty',key:`show_${typ.toLowerCase()}s`,value:e.target.checked});
  $('resolution').onchange=e=>{let [width,height]=e.target.value.split('x').map(Number);exec({type:'SetCanvas',canvas:{width,height}});};$('transparent').onchange=e=>exec({type:'SetCanvas',canvas:{transparent:e.target.checked}});$('exportImage').onclick=exportImage;$('exportLayers').onclick=exportLayers;
- window.addEventListener('cartorig-asset-loaded',()=>invalidatePreviewResources());window.addEventListener('keydown',e=>{let editing=e.target.matches('input,textarea,select,[contenteditable=true]');if(e.key==='Escape'){routeFrom=null;if(inlineTextEditor){wrap.querySelector('.creative-text-confirm')?.remove();inlineTextEditor.remove();inlineTextEditor=null;}setTool('select');return;}if(editing)return;
- if(e.key==='Enter'&&creativeDraft){e.preventDefault();commitCreativeDraft();return;}let ctrl=e.ctrlKey||e.metaKey;if(ctrl){if(e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?store.redo():store.undo();}else if(e.key.toLowerCase()==='y'){e.preventDefault();store.redo();}else if(e.key.toLowerCase()==='s'){e.preventDefault();saveProject();}else if(e.key.toLowerCase()==='o'){e.preventDefault();$('projectFile').click();}else if(e.key.toLowerCase()==='n'){e.preventDefault();newProject();}else if(e.key.toLowerCase()==='d'){e.preventDefault();if(store.selection.length===1)exec({type:'DuplicateObject',id:store.selection[0]});}else if(e.key.toLowerCase()==='g'){e.preventDefault();if(e.shiftKey){if(store.selection.length===1)exec({type:'Ungroup',id:store.selection[0]});}else if(store.selection.length){exec({type:'GroupSelection',ids:store.selection});}}else if(e.key.toLowerCase()==='e'&&e.shiftKey){e.preventDefault();exportLayers();}return;}
+ window.addEventListener('cartorig-asset-loaded',()=>invalidatePreviewResources());window.addEventListener('keydown',e=>{
+ let editing=e.target.matches('input,textarea,select,[contenteditable=true]');
+ if(e.key==='Escape'){
+  routeFrom=null;
+  if(inlineTextEditor){
+   wrap.querySelector('.creative-text-confirm')?.remove();inlineTextEditor.remove();inlineTextEditor=null;
+  }
+  if(creativeDraft||editHandles||DRAWING_TOOLS.includes(tool))e.preventDefault();
+  setTool('select');return;
+ }
+ if(editing)return;
+ if(e.key==='Backspace'&&creativeDraft){
+  e.preventDefault();
+  creativeDraft.points.pop();
+  if(!creativeDraft.points.length)creativeDraft=null;
+  updateCreativeGuidance();drawPreview();return;
+ }
+ if(e.key==='Enter'&&creativeDraft){
+  e.preventDefault();
+  if(!isContinuousDraft(creativeDraft)){showToast('Click the second point to finish · Esc cancels',true);return;}
+  commitCreativeDraft();return;
+ }
+ let ctrl=e.ctrlKey||e.metaKey;if(ctrl){if(e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?store.redo():store.undo();}else if(e.key.toLowerCase()==='y'){e.preventDefault();store.redo();}else if(e.key.toLowerCase()==='s'){e.preventDefault();saveProject();}else if(e.key.toLowerCase()==='o'){e.preventDefault();$('projectFile').click();}else if(e.key.toLowerCase()==='n'){e.preventDefault();newProject();}else if(e.key.toLowerCase()==='d'){e.preventDefault();if(store.selection.length===1)exec({type:'DuplicateObject',id:store.selection[0]});}else if(e.key.toLowerCase()==='g'){e.preventDefault();if(e.shiftKey){if(store.selection.length===1)exec({type:'Ungroup',id:store.selection[0]});}else if(store.selection.length){exec({type:'GroupSelection',ids:store.selection});}}else if(e.key.toLowerCase()==='e'&&e.shiftKey){e.preventDefault();exportLayers();}return;}
  if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();deleteSelected();}else if(e.key.toLowerCase()==='v')setTool('select');else if(e.key.toLowerCase()==='h')setTool('pan');else if(e.key.toLowerCase()==='r')setTool('route');else if(e.key.toLowerCase()==='t')setTool('label');else if(e.key.toLowerCase()==='m')setTool('marker');else if(e.key.toLowerCase()==='d')setTool('shape');else if(e.key.toLowerCase()==='f')fitSelection();else if(e.key==='0')$('worldView').click();});
 }
 async function init(){
