@@ -178,7 +178,7 @@ try {
     $rsrc=Join-Path (& go env GOPATH) 'bin/rsrc.exe'
     & $rsrc -ico $ico -arch amd64 -o 'cartorig_windows_amd64.syso'
     if ($LASTEXITCODE -ne 0) { throw 'Cannot embed CartoRig Windows icon' }
-    $out='dist/CartoRig-2.4.0-Preview-Wails3-Portable-Windows-x64.exe'
+    $out='dist/CartoRig-2.4.0-Wails3-Portable-Windows-x64.exe'
     try {
         & go build -trimpath -tags 'wails,production,fullgeo' -ldflags '-s -w -H=windowsgui' -o $out .
         if ($LASTEXITCODE -ne 0) { throw 'Wails 3 Windows compilation failed' }
