@@ -21,7 +21,7 @@ const currentKey='cartorig-m1-last-project',legacyKey='map-composer-project-v1';
 const aliases={'Brazil':['Brasil'],'Russia':['Rússia'],'Ukraine':['Ucrânia'],'Germany':['Alemanha'],'Spain':['Espanha'],'United States of America':['Estados Unidos','EUA','USA'],'United Kingdom':['Reino Unido','Inglaterra'],'France':['França'],'Poland':['Polônia'],'China':['China'],'Iran':['Irã'],'South Korea':['Coreia do Sul'],'North Korea':['Coreia do Norte'],'Saudi Arabia':['Arábia Saudita'],'Japan':['Japão'],'Turkey':['Turquia'],'Sweden':['Suécia'],'Greece':['Grécia'],'Netherlands':['Holanda'],'Egypt':['Egito'],'Australia':['Austrália'],'India':['Índia'],'Argentina':['Argentina']};
 const norm=geoNormalize;
 let countries=[],byIso=new Map(),images={},store=new SceneStore(),tool='select',routeFrom=null,drag=null,previewW=1,previewH=1,expanded=new Set(),selectedTab='layers',rightTab='styles',toastTimer=0,saveTimer=0,soloId=null,dragPreview=null;
-let creativeDraft=null,creativeCursor=null,editHandles=false,editOffset=false,inlineTextEditor=null;
+let creativeDraft=null,creativeCursor=null,editHandles=false,editOffset=false,inlineTextEditor=null,hoverHandle=null;
 let lastSavedFileName=null,sessionToken="",geo=null,worldAdminState="checking",worldCitiesState="checking",worldAdminCount=0,appReady=false,worldAdminHealth=null,worldCitiesHealth=null,verifiedGeoHealth=null;
 const GEO_RESULTS_PAGE=20, GEO_SEARCH_DELAY_MS=180;
 let geoSearchOffset=0,geoSearchTimer=null;
@@ -484,11 +484,14 @@ function renderPreviewNow(){if(!countries.length)return;let {w,h}=updateCanvasSi
  }else if(creativeCursor&&!drag){
   drawPlacementPreview(ctx,doc,tool,creativeCursor,w,h,project,creativePoint,{symbol:$('markerSymbol')?.value||'Circle'});
  }
- if(drag?.handle){
-  const o=doc.objects[drag.handle.id];
+ const activeHandle=drag?.handle||hoverHandle;
+ if(activeHandle){
+  const o=doc.objects[activeHandle.id];
   const handles=o?creativeHandles(doc,o,w,h,project):[];
-  const handle=handles.find(h=>h.index===drag.handle.index);
-  if(handle)drawHandle(ctx,...handle.xy,handleRole(o,handle.index,handles.length),{active:true});
+  const handle=handles.find(h=>h.index===activeHandle.index);
+  if(handle)drawHandle(ctx,...handle.xy,
+   editOffset&&o?.type==='Marker'?'offset':handleRole(o,handle.index,handles.length),
+   {active:true});
  }
  if(doc.canvas.transparent){ctx.save();ctx.globalCompositeOperation='destination-over';ctx.fillStyle='#202e3d';ctx.fillRect(0,0,w,h);ctx.fillStyle='#15212c';let tile=24;for(let y=0;y<h;y+=tile*2)for(let x=0;x<w;x+=tile*2){ctx.fillRect(x,y,tile,tile);ctx.fillRect(x+tile,y+tile,tile,tile);}ctx.restore();}$('previewSize').textContent=w+' × '+h;}
 function pointerXY(ev){let rect=canvas.getBoundingClientRect();return {x:(ev.clientX-rect.left)*canvas.width/rect.width,y:(ev.clientY-rect.top)*canvas.height/rect.height};}
@@ -501,7 +504,8 @@ function updateCreativeGuidance(){
 }
 function setTool(name){
  $('toolSelect').closest('.toolstrip').dataset.activeTool=name;
- tool=name;routeFrom=null;creativeDraft=null;creativeCursor=null;editHandles=false;editOffset=false;
+ tool=name;routeFrom=null;creativeDraft=null;creativeCursor=null;editHandles=false;editOffset=false;hoverHandle=null;
+ wrap.classList.remove('ux-handle-hover');
  document.querySelectorAll('[id^="tool"]').forEach(b=>{
   if(b.tagName==='BUTTON')b.classList.toggle('active',b.id==='tool'+name[0].toUpperCase()+name.slice(1));
  });
@@ -543,7 +547,9 @@ function creativePreviewObject(doc){if(!creativeDraft?.points?.length)return nul
  if(d.type==='Route')return {type:'Route',from:pts[0],to:pts.at(-1),path_type:d.path_type,waypoints:d.path_type==='Custom'?pts.slice(1,-1):[],curvature:0,style:{stroke_color:'#e5b467',stroke_width:2,arrowheads:'None'}};
  return {type:'Shape',shape_kind:d.shape_kind,coordinate_space:d.coordinate_space,points:pts,style:{stroke_color:'#e5b467',stroke_width:2,fill_color:'#e5b46733'},text:'Callout'};
 }
-function openInlineText(objOrPoint){let original=objOrPoint?.type==='Label'?objOrPoint:null;if(inlineTextEditor)inlineTextEditor.remove();
+function openInlineText(objOrPoint){
+ creativeCursor=null;drawPreview();
+ let original=objOrPoint?.type==='Label'?objOrPoint:null;if(inlineTextEditor)inlineTextEditor.remove();
  let anchor=original?.anchor||objOrPoint?.anchor||{lon:0,lat:0},position=original?.position_mode==='screen'?original.screen_pos:null;
  let xy=position?[position.x*canvas.width,position.y*canvas.height]:project(store.doc,anchor.lon,anchor.lat,canvas.width,canvas.height);
  let bounds=canvas.getBoundingClientRect(),parent=wrap.getBoundingClientRect(),el=document.createElement('textarea');el.className='creative-text-editor';el.setAttribute('aria-label','Inline label text');el.placeholder='Enter text · Ctrl+Enter to confirm · Esc to cancel';el.value=original?.text||'';el.style.left=(bounds.left-parent.left+xy[0]*bounds.width/canvas.width)+'px';el.style.top=(bounds.top-parent.top+xy[1]*bounds.height/canvas.height)+'px';
@@ -566,16 +572,18 @@ function canvasClick(x,y,ev){let doc=store.doc,[lon,lat]=unproject(doc,x,y,canva
   const point=snapCreative({lon,lat},'geo'),type=routeTool();
   if(!creativeDraft)creativeDraft={type:'Route',path_type:type,points:[point]};
   else creativeDraft.points.push(point);
-  if(type!=='Custom'&&creativeDraft.points.length>=2)commitCreativeDraft();
-  else{updateCreativeGuidance();drawPreview();}
+  if(type!=='Custom'&&creativeDraft.points.length>=2){
+   if(!commitCreativeDraft()){creativeDraft.points.pop();updateCreativeGuidance();drawPreview();}
+  }else{updateCreativeGuidance();drawPreview();}
   return;
  }
  if(tool==='shape'){
   const kind=shapeTool(),space=shapeSpace(),point=snapCreative(creativePoint(x,y,space),space);
   if(!creativeDraft)creativeDraft={type:'Shape',shape_kind:kind,coordinate_space:space,points:[point]};
   else creativeDraft.points.push(point);
-  if(!['Polygon','Freehand'].includes(kind)&&creativeDraft.points.length>=2)commitCreativeDraft();
-  else{updateCreativeGuidance();drawPreview();}
+  if(!['Polygon','Freehand'].includes(kind)&&creativeDraft.points.length>=2){
+   if(!commitCreativeDraft()){creativeDraft.points.pop();updateCreativeGuidance();drawPreview();}
+  }else{updateCreativeGuidance();drawPreview();}
   return;
  }
  if(tool==='label'){openInlineText({anchor:{lon,lat}});return;}
@@ -623,6 +631,18 @@ function setupCanvas(){
  if(!drag.handle&&obj&&store.selection.includes(hit)&&['Label','Marker'].includes(obj.type)&&!isLocked(doc,hit)){drag.id=hit;drag.originalPoint=[obj.anchor.lon,obj.anchor.lat];}}canvas.setPointerCapture(e.pointerId);wrap.classList.add('dragging');});
  canvas.addEventListener('pointermove',e=>{let p=pointerXY(e),[lon,lat]=unproject(store.doc,p.x,p.y,canvas.width,canvas.height);$('cursorCoords').textContent=lat.toFixed(2)+'°, '+lon.toFixed(2)+'°';
  if(DRAWING_TOOLS.includes(tool)&&tool!=='region'&&!drag){creativeCursor=p;drawPreview();}
+ if(editHandles&&tool==='select'&&!drag){
+  let next=null;
+  for(const id of [...store.selection].reverse()){
+   const o=store.doc.objects[id];
+   if(!o||isLocked(store.doc,id))continue;
+   const hit=handleHit(creativeHandles(store.doc,o,canvas.width,canvas.height,project),p.x,p.y);
+   if(hit){next={id,index:hit.index};break;}
+  }
+  if(next?.id!==hoverHandle?.id||next?.index!==hoverHandle?.index){
+   hoverHandle=next;wrap.classList.toggle('ux-handle-hover',!!next);drawPreview();
+  }
+ }
  if(!drag)return;let dx=p.x-drag.start.x,dy=p.y-drag.start.y;if(Math.hypot(dx,dy)>4)drag.moved=true;if(!drag.moved)return;
  if(drag.handle){let {id,index}=drag.handle,obj=clone(drag.originalObject),kind=obj.type,point=creativePoint(p.x,p.y,kind==='Shape'?obj.coordinate_space:obj.type==='Label'&&obj.position_mode==='screen'?'screen':'geo');
   if(kind==='Route'){if(index===0)obj.from=point;else if(index===(obj.waypoints?.length||0)+1)obj.to=point;else obj.waypoints[index-1]=point;}
@@ -650,7 +670,9 @@ function setupCanvas(){
   updateCreativeGuidance();drawPreview();
  });
  canvas.addEventListener('pointerleave',()=>{
-  if(!drag&&creativeCursor){creativeCursor=null;drawPreview();}
+  if(!drag&&(creativeCursor||hoverHandle)){
+   creativeCursor=null;hoverHandle=null;wrap.classList.remove('ux-handle-hover');drawPreview();
+  }
  });
  canvas.addEventListener('wheel',e=>{e.preventDefault();let p=pointerXY(e),[lon1,lat1]=unproject(store.doc,p.x,p.y,canvas.width,canvas.height);let zoom=clamp(store.doc.camera.zoom*(e.deltaY<0?1.17:1/1.17),.35,80);let draft=clone(store.doc);draft.camera.zoom=zoom;let [lon2,lat2]=unproject(draft,p.x,p.y,canvas.width,canvas.height);exec({type:'SetCameraPose',pose:{zoom,center_lon:clamp(store.doc.camera.center_lon+lon1-lon2,-180,180),center_lat:clamp(store.doc.camera.center_lat+lat1-lat2,-90,90)}});},{passive:false});}
 function newProject(){if(store.dirty&&!confirm('Discard unsaved changes and create a new project?'))return;store.replace(newDocument());localStorage.removeItem(currentKey);showToast('New scene created');}
