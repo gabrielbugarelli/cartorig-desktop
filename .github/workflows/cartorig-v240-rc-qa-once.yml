@@ -1,0 +1,111 @@
+name: CartoRig v2.4.0 Official Release Candidate Windows QA
+# Public standard Windows runner, one-time release candidate verification.
+on:
+  push:
+    branches:
+      - feature/ui-ux-stage24
+    paths:
+      - '.github/workflows/cartorig-v240-rc-qa-once.yml'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: cartorig-v240-candidate-once
+  cancel-in-progress: false
+jobs:
+  candidate:
+    if: "${{ github.event.repository.private == false && github.event.head_commit.message == 'ci(release): one-time v2.4.0 Windows release candidate QA' }}"
+    runs-on: windows-2022
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.x'
+          cache: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check official version, installer and policy
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if((Get-Content -Raw main.go) -notmatch 'const version = "2\.4\.0"'){throw 'main.go is not stable v2.4.0'}
+          if((Get-Content -Raw assets/index.html) -notmatch '2\.4\.0 Desktop'){throw 'UI still has Preview badge'}
+          node tests/test_windows_installer.mjs
+          if($LASTEXITCODE -ne 0){throw 'Installer contract failed'}
+          node tests/test_windows_signing_policy.mjs
+          if($LASTEXITCODE -ne 0){throw 'Windows signing safety policy failed'}
+          foreach($path in @('scripts/build-windows-installer.ps1','scripts/test-windows-installer.ps1')){
+            $tokens=$null;$errors=$null
+            $null=[System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $path).Path,[ref]$tokens,[ref]$errors)
+            if($errors.Count){throw "$path $($errors | Out-String)"}
+          }
+      - name: Build official v2.4.0 Windows portable with full regression tests
+        shell: pwsh
+        run: |
+          ./scripts/build-wails3-portable.ps1
+          $exe='dist/CartoRig-2.4.0-Wails3-Portable-Windows-x64.exe'
+          if(!(Test-Path $exe)){throw 'Official v2.4.0 Windows EXE missing'}
+          $hash=(Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          $expected=(Get-Content -Raw 'dist/CartoRig-Wails3-SHA256.txt').Trim().Split(' ')[0].ToLowerInvariant()
+          if($hash -ne $expected){throw 'Built EXE checksum mismatch'}
+          Write-Host "Official Windows v2.4.0 EXE SHA256: $hash"
+      - name: Ensure Inno Setup 6 compiler is present
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $iscc=@(
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+          ) | Where-Object {Test-Path -LiteralPath $_}
+          if(!$iscc){
+            choco install innosetup --version=6.7.1 --yes --no-progress
+            if($LASTEXITCODE -ne 0){throw 'Inno Setup compiler unavailable'}
+          }
+      - name: Package official v2.4.0 traditional installer from freshly built EXE
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $exe='dist/CartoRig-2.4.0-Wails3-Portable-Windows-x64.exe'
+          $hash=(Get-FileHash $exe -Algorithm SHA256).Hash
+          ./scripts/build-windows-installer.ps1 -ExpectedSHA256 $hash
+          $setup='dist/installer/CartoRig-2.4.0-Setup-Windows-x64.exe'
+          if(!(Test-Path $setup)){throw 'Setup EXE missing'}
+          $setupHash=(Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant()
+          $expected=(Get-Content -Raw 'dist/installer/CartoRig-2.4.0-Setup-Windows-x64-SHA256.txt').Trim().Split(' ')[0].ToLowerInvariant()
+          if($setupHash -ne $expected){throw 'Setup checksum mismatch'}
+          Write-Host "Official v2.4.0 installer SHA256: $setupHash"
+      - name: Real install and uninstall with installed-app smoke checks
+        shell: pwsh
+        run: |
+          $exe='dist/CartoRig-2.4.0-Wails3-Portable-Windows-x64.exe'
+          $hash=(Get-FileHash $exe -Algorithm SHA256).Hash
+          ./scripts/test-windows-installer.ps1 -SetupExe 'dist/installer/CartoRig-2.4.0-Setup-Windows-x64.exe' -ApprovedPortableSHA256 $hash
+      - name: Verify all files and publish tested release candidate
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $names=@(
+            'dist/CartoRig-2.4.0-Wails3-Portable-Windows-x64.exe',
+            'dist/CartoRig-Wails3-SHA256.txt',
+            'dist/installer/CartoRig-2.4.0-Setup-Windows-x64.exe',
+            'dist/installer/CartoRig-2.4.0-Setup-Windows-x64-SHA256.txt'
+          )
+          foreach($path in $names){if(!(Test-Path $path)){throw "Missing release asset: $path"}}
+          foreach($exe in @($names[0],$names[2])){
+            $sig=Get-AuthenticodeSignature -LiteralPath $exe
+            if($sig.SignerCertificate){throw 'Unapproved signer in unsigned release build'}
+          }
+          Write-Host 'Windows QA completed, source and setup checksums pinned'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CartoRig-v2.4.0-Official-Windows-x64-Verified
+          path: |
+            dist/CartoRig-2.4.0-Wails3-Portable-Windows-x64.exe
+            dist/CartoRig-Wails3-SHA256.txt
+            dist/installer/CartoRig-2.4.0-Setup-Windows-x64.exe
+            dist/installer/CartoRig-2.4.0-Setup-Windows-x64-SHA256.txt
+          retention-days: 3
+          if-no-files-found: error
