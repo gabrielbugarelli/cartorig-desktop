@@ -25,7 +25,7 @@ O mantenedor precisa:
    - Variable `SIGNPATH_ORGANIZATION_ID`: ID da organização SignPath.
    - Variable `SIGNPATH_PROJECT_SLUG`: identificador do projeto.
    - Variable `SIGNPATH_SIGNING_POLICY_SLUG`: identificador da política de assinatura.
-5. Executar manualmente a Action **CartoRig Signed Windows Portable (SignPath OSS)** a partir da branch revisada.
+5. Integrar o workflow revisado à branch padrão `main` (o GitHub só disponibiliza `workflow_dispatch` para workflows existentes na branch padrão) e, então, executar manualmente **CartoRig Signed Windows Portable (SignPath OSS)** a partir de uma ref revisada. Antes da integração, o arquivo de workflow é somente uma proposta testada na feature branch, não um botão executável no Actions.
 
 O workflow `.github/workflows/cartorig-windows-signpath-signed.yml`:
 - Só opera em repositório público e refs explicitamente aceitas (`main` e a branch de desenvolvimento atual), em runner gratuito `windows-2022`.
@@ -40,7 +40,14 @@ O workflow `.github/workflows/cartorig-windows-signpath-signed.yml`:
 
 ## Alternativas
 
-- **Certificado Authenticode público OV**: obter de uma autoridade certificadora reconhecida e integrar o serviço de assinatura ou dispositivo HSM ao pipeline. Um certificado de produção não deve ser incluído no repositório, em artefatos ou código-fonte.
+- **Certificado Authenticode público OV**: obter de uma autoridade certificadora reconhecida e integrar o serviço de assinatura ou dispositivo HSM ao pipeline. Um certificado de produção não deve ser incluído no repositório, em artefatos ou código-fonte. Se já possuir um certificado de assinatura de código instalado em `Cert:\\CurrentUser\\My` com chave privada acessível, use `scripts/sign-windows-portable.ps1` localmente. Exemplo para o executável aprovado da prévia 2.4:
+  ```powershell
+  .\\scripts\\sign-windows-portable.ps1 `
+      -ExePath '.\\CartoRig-2.4.0-Preview-Wails3-Portable-Windows-x64.exe' `
+      -ExpectedSHA256 '89714c33f271cacc2a2c53bc9cfc338aff331f55d747d0925dfde838412bcd50' `
+      -CertificateThumbprint 'SEU_THUMBPRINT_HEXADECIMAL_DE_40_CARACTERES'
+  ```
+  O script exige SignTool do Windows SDK, confirma o SHA-256 do original, cria uma cópia assinada, valida Authenticode e gera novo checksum e ZIP. Ele **não cria certificado** nem garante reputação imediata. Não envie a chave privada ou certificado PFX para o chat.
 - **Microsoft Store em formato MSIX**: se aprovado na Store, o pacote é assinado pela Microsoft, reduzindo avisos de download da Store. Trata-se de outro canal de distribuição, não da correção do EXE portable baixado do GitHub.
 - **Azure Artifact Signing**: depende de elegibilidade regional/organizacional, verificação de identidade e cobrança. Não é possível assumir que está disponível para qualquer desenvolvedor individual no Brasil.
 
