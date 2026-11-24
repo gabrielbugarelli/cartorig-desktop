@@ -3,7 +3,7 @@
 # to remove "Unknown publisher" in Defender SmartScreen.
 [CmdletBinding()]
 param(
-  [string]$SourceExe = 'dist/CartoRig-2.4.0-Preview-Wails3-Portable-Windows-x64.exe',
+  [string]$SourceExe = 'dist/CartoRig-2.4.0-Wails3-Portable-Windows-x64.exe',
   [Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-fA-F]{64}$')][string]$ExpectedSHA256
 )
 $ErrorActionPreference='Stop'
@@ -16,8 +16,8 @@ try{
   if($actual -ne $ExpectedSHA256.ToLowerInvariant()){
     throw "Refusing to bundle EXE with unapproved SHA256: $actual"
   }
-  if(([IO.Path]::GetFileName($source)) -ne 'CartoRig-2.4.0-Preview-Wails3-Portable-Windows-x64.exe'){
-    throw 'Installer source EXE must have the approved 2.4.0 Preview filename'
+  if(([IO.Path]::GetFileName($source)) -ne 'CartoRig-2.4.0-Wails3-Portable-Windows-x64.exe'){
+    throw 'Installer source EXE must have the approved 2.4.0 filename'
   }
   $compiler=Get-Command ISCC.exe -ErrorAction SilentlyContinue
   $compilerPath=if($compiler){$compiler.Source}else{$null}
@@ -51,12 +51,12 @@ try{
   }finally{$stream.Dispose()}
   & $compilerPath 'installer/cartorig-desktop.iss'
   if($LASTEXITCODE -ne 0){throw "Inno Setup compile failed: exit=$LASTEXITCODE"}
-  $setup=(Resolve-Path 'dist/installer/CartoRig-2.4.0-Preview-Setup-Windows-x64.exe').Path
+  $setup=(Resolve-Path 'dist/installer/CartoRig-2.4.0-Setup-Windows-x64.exe').Path
   if((Get-Item $setup).Length -lt 5MB){throw 'Installer output too small'}
   $checksum=(Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLowerInvariant()
-  "$checksum  $([IO.Path]::GetFileName($setup))" | Set-Content -LiteralPath 'dist/installer/CartoRig-2.4.0-Preview-Setup-Windows-x64-SHA256.txt' -Encoding ascii
+  "$checksum  $([IO.Path]::GetFileName($setup))" | Set-Content -LiteralPath 'dist/installer/CartoRig-2.4.0-Setup-Windows-x64-SHA256.txt' -Encoding ascii
   $sig=Get-AuthenticodeSignature -LiteralPath $setup
   Write-Host "Inno Setup installer generated: $setup"
   Write-Host "Installer SHA256: $checksum"
-  Write-Host "Authenticode status: $($sig.Status) — unsigned preview (SmartScreen may warn)"
+  Write-Host "Authenticode status: $($sig.Status) — unsigned Windows installer (SmartScreen may warn)"
 }finally{Pop-Location}
