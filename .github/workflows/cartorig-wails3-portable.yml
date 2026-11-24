@@ -36,6 +36,9 @@ jobs:
           node tests/test_ui_stage2_workspace.mjs
           node tests/test_ui_stage2_inspector.mjs
           node tests/test_ui_stage23_drawing.mjs
+          node tests/test_ui_stage24_looks.mjs
+          node --check assets/looks-quick.js
+          node --check assets/style-studio.js
           node --check assets/creative-interaction.js
           node --check assets/inspector-layout.js
           node --check assets/creative-inspector.js
