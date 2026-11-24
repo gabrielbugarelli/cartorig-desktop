@@ -2,6 +2,8 @@
 
 Release estável Windows x64: [v2.2.0](https://github.com/gabrielbugarelli/cartorig-desktop/releases/tag/v2.2.0) · [Notas da versão](docs/releases/v2.2.0.md).
 
+**Assinatura de aplicativos Windows:** as prévias 2.3/2.4 ainda são distribuídas sem certificado Authenticode e podem gerar o aviso “O Windows protegeu o computador” / “Fornecedor desconhecido”. A integração de assinatura pública **SignPath Foundation** está preparada, mas depende de cadastro e aprovação externa; nenhum build foi apresentado como assinado sem certificado. Consulte a [orientação de assinatura e SmartScreen](docs/WINDOWS_CODE_SIGNING.md).
+
 **Novidades:** Workspace ajustável com barras laterais redimensionáveis e layout persistente; Inspector contextual com seções **Basic**, **Position**, **Appearance** e **Advanced** para Callout, Label, Route, Marker, Region e multisseleção.
 
 **Mantido da v2.1.0:** em MAP DISPLAY, os checkboxes **Land textures** e **Ocean textures** controlam terra e mar de maneira independente. Projetos `.cartorig` anteriores continuam compatíveis.
