@@ -1,9 +1,9 @@
-# Changelog — CartoRig Desktop 2.2.0 Preview
+# Changelog — CartoRig Desktop v2.2.0
 
 **Entrega:** UI/UX Etapa 2.2 — Inspector contextual  
 **Base estável:** v2.1.0  
-**Branch:** `feature/ui-ux-stage2`  
-**Status:** prévia para validação; nenhuma alteração na release v2.1.0
+**Desenvolvimento:** `feature/ui-ux-stage2` · integração na `main` para a tag `v2.2.0`  
+**Status:** aprovado para publicação da release estável v2.2.0; a v2.1.0 permanece disponível no histórico
 
 ## Adicionado
 
