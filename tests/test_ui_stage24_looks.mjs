@@ -82,6 +82,8 @@ globalThis.confirm=()=>true;
 globalThis.prompt=()=>'';
 globalThis.window={};
 const store=new SceneStore(newDocument()),commands=[];
+const baselineCount=countLookCustomizations(store.doc);
+assert.ok(baselineCount>=0);
 const controller=setupStyleStudio({
  getDoc:()=>store.doc,getSelection:()=>store.selection,
  exec:cmd=>{commands.push(cmd);return store.execute(cmd);},
@@ -122,14 +124,14 @@ assert.equal(store.doc.theme.overrides.land_material_strength,.65);
 controller.sync();
 const after=one(root,x=>x.id==='style14QuickAdjustments');
 assert.equal(one(after,x=>x.dataset.quickField==='land_material_strength').dataset.state,'customized');
-assert.equal(countLookCustomizations(store.doc),1);
+assert.equal(countLookCustomizations(store.doc),baselineCount+1,'Quick edit adds one override to initial border overrides');
 assert.equal(cards.filter(x=>x.classList.contains('customized')).length,1);
 assert.equal(cards.find(x=>x.classList.contains('customized'))?.dataset.style,store.doc.theme.id);
 const revert=one(after,x=>x.dataset.revertTheme==='land_material_strength');
 assert.ok(revert,'Quick customization must provide per-field revert');
 revert.click();
 assert.equal(store.doc.theme.overrides.land_material_strength,undefined);
-assert.equal(countLookCustomizations(store.doc),0);
+assert.equal(countLookCustomizations(store.doc),baselineCount,'Restoring one field must keep existing border overrides');
 assert.ok(store.undo(),'Undo should restore custom intensity');
 assert.equal(themeValue(store.doc,'land_material_strength'),.65);
 assert.ok(store.redo(),'Redo should restore inherited intensity');
