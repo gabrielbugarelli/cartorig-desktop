@@ -29,7 +29,7 @@ for(const name of ['showRivers','showLakes','showCoastlines']){
 }
 assert.match(studio,/const textureSlot=mapControls\?\.querySelector\('#uxMapTextureSlot'\)/);
 assert.match(studio,/textureSlot\.replaceChildren\(\.\.\.textureToggles\)/,'re-render must not duplicate texture toggles');
-assert.match(studio,/controlsArea\.append\(mapControls\)/,'both switches must share the Map display panel');
+assert.match(studio,/quickArea\.append\(mapControls\)/,'both surface switches must remain together in Quick adjustments');
 assert.match(studio,/\['land','landTexturesEnabled','Land textures'\]/);
 assert.match(studio,/\['ocean','oceanTexturesEnabled','Ocean textures'\]/);
 assert.match(studio,/input\.checked=texturesEnabled\(doc,surface\)/);
