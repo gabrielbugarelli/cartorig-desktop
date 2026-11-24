@@ -91,6 +91,20 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'UI stage-one contract regression failed' }
     & node tests/test_ui_map_display.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Compact map display regression failed' }
+    & node tests/test_ui_stage2_workspace.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Stage 2.1 adjustable workspace regression failed' }
+    & node tests/test_ui_stage2_inspector.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Stage 2.2 contextual Inspector regression failed' }
+    & node --check assets/inspector-layout.js
+    if ($LASTEXITCODE -ne 0) { throw 'Contextual Inspector tab module syntax invalid' }
+    & node --check assets/creative-inspector.js
+    if ($LASTEXITCODE -ne 0) { throw 'Creative Inspector JavaScript syntax invalid' }
+    & node --check assets/style-inspector.js
+    if ($LASTEXITCODE -ne 0) { throw 'Advanced Inspector JavaScript syntax invalid' }
+    & node --check assets/workspace-layout.js
+    if ($LASTEXITCODE -ne 0) { throw 'Stage 2 workspace JavaScript syntax invalid' }
+    & node --check assets/navigation-ui.js
+    if ($LASTEXITCODE -ne 0) { throw 'Stage 2 navigation JavaScript syntax invalid' }
     & node tests/test_callout_geo_anchor.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Geographic Callout regression failed' }
     & node tests/test_callout_text_contrast.mjs
@@ -152,7 +166,7 @@ try {
     $rsrc=Join-Path (& go env GOPATH) 'bin/rsrc.exe'
     & $rsrc -ico $ico -arch amd64 -o 'cartorig_windows_amd64.syso'
     if ($LASTEXITCODE -ne 0) { throw 'Cannot embed CartoRig Windows icon' }
-    $out='dist/CartoRig-2.1.0-Wails3-Portable-Windows-x64.exe'
+    $out='dist/CartoRig-2.2.0-Wails3-Portable-Windows-x64.exe'
     try {
         & go build -trimpath -tags 'wails,production,fullgeo' -ldflags '-s -w -H=windowsgui' -o $out .
         if ($LASTEXITCODE -ne 0) { throw 'Wails 3 Windows compilation failed' }

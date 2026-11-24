@@ -13,13 +13,15 @@ export function renderAdvancedInspector(root,obj,doc,{exec,field,check,group,loc
   else {const hex=document.createElement('input');hex.className='control compact style14-hex';hex.value=value;hex.maxLength=9;hex.disabled=locked;hex.setAttribute('aria-label',label+' hexadecimal');hex.onchange=()=>{if(/^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(hex.value)){set(key,hex.value);input.value=fullHex(hex.value);}else{toast('Invalid hexadecimal color',true);hex.value=fullHex(style[key]);}};g.append(hex);}
   if(owned){const b=document.createElement('button');b.textContent='Revert '+label+' to inherited';b.className='style14-reset';b.disabled=locked;b.onclick=()=>exec({type:'ResetStyleProperty',id,key});g.append(b);}
  };
- const appearance=grp('ADVANCED APPEARANCE');
- if(['Region','Marker','Shape'].includes(obj.type)){control(appearance,'Fill color','fill_color','color');if(obj.type==='Region')control(appearance,'Fill opacity','fill_opacity','number',0,1,.05);}
- if(['Region','Route','Marker','Shape'].includes(obj.type)){
-  control(appearance,'Stroke color','stroke_color','color');control(appearance,'Stroke width (logical px)','stroke_width','number',0,40,.5);
-  if(['Region','Route','Shape'].includes(obj.type)){control(appearance,'Stroke opacity','stroke_opacity','number',0,1,.05);choice(appearance,'Stroke style',['Solid','Dashed','Dotted'],style.stroke_style||'Solid',v=>set('stroke_style',v),locked);}
+ // Essential fill, stroke, text and size controls live in Appearance.
+ // Advanced exposes only additional properties, preventing duplicate inputs
+ // that showed different fallback values in the old Inspector.
+ if(['Region','Route','Shape'].includes(obj.type)){
+  const fine=grp('DETAILED STROKE');
+  if(obj.type==='Region')control(fine,'Fill opacity','fill_opacity','number',0,1,.05);
+  control(fine,'Stroke opacity','stroke_opacity','number',0,1,.05);
+  if(obj.type==='Region')choice(fine,'Stroke style',['Solid','Dashed','Dotted'],style.stroke_style||'Solid',v=>set('stroke_style',v),locked);
  }
- if(['Label','Shape'].includes(obj.type))control(appearance,'Text color','text_color','color');
  const fx=grp('SHADOW');check(fx,'Enable shadow',style.shadow_enabled,v=>set('shadow_enabled',v),locked);control(fx,'Color','shadow_color','color');control(fx,'Opacity','shadow_opacity','number',0,1,.05);control(fx,'Blur (logical px)','shadow_blur','number',0,100,1);control(fx,'Distance (logical px)','shadow_distance','number',0,200,1);control(fx,'Angle (degrees)','shadow_angle','number',0,360,1);
  const gl=grp('GLOW');check(gl,'Enable glow',style.glow_enabled,v=>set('glow_enabled',v),locked);control(gl,'Color','glow_color','color');control(gl,'Intensity','glow_intensity','number',0,2,.1);control(gl,'Radius (logical px)','glow_radius','number',0,100,1);control(gl,'Mix','glow_mix','number',0,1,.05);
  const comp=grp('BLEND MODE');choice(comp,'Blend mode',BLEND_MODES,style.blend_mode||'normal',v=>set('blend_mode',v),locked);

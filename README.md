@@ -1,10 +1,10 @@
-# CartoRig Desktop v2.1.0 — UI/UX Etapa 1
+# CartoRig Desktop v2.2.0 — UI/UX Etapas 2.1 e 2.2
 
-Release oficial Windows x64: [v2.1.0](https://github.com/gabrielbugarelli/cartorig-desktop/releases/tag/v2.1.0) · [Notas da versão](docs/releases/v2.1.0.md).
+Release estável Windows x64: [v2.2.0](https://github.com/gabrielbugarelli/cartorig-desktop/releases/tag/v2.2.0) · [Notas da versão](docs/releases/v2.2.0.md).
 
-**MAP DISPLAY** possui dois controles independentes: **Land textures** e **Ocean textures**. Assim, é possível aplicar texturas somente aos continentes, somente ao oceano, em ambos ou em nenhum, sem alterar o estilo selecionado. Os projetos `.cartorig` antigos permanecem compatíveis.
+**Novidades:** Workspace ajustável com barras laterais redimensionáveis e layout persistente; Inspector contextual com seções **Basic**, **Position**, **Appearance** e **Advanced** para Callout, Label, Route, Marker, Region e multisseleção.
 
-A versão portable integra as melhorias da primeira etapa de UI/UX, correções de Callout, cache e desenho do mapa, recuperação de projetos e exportações. A Etapa 2 será desenvolvida após a publicação desta release.
+**Mantido da v2.1.0:** em MAP DISPLAY, os checkboxes **Land textures** e **Ocean textures** controlam terra e mar de maneira independente. Projetos `.cartorig` anteriores continuam compatíveis.
 
 ---
 
